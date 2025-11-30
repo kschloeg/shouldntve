@@ -1,0 +1,29 @@
+{
+  "name": "@starter/source",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"No root tests. Run package tests with npm --workspace <package> test\" && exit 0",
+    "build:all": "npm run --workspace packages/backend build && npm run --workspace packages/frontend build"
+  },
+  "engines": {
+    "node": ">=25"
+  },
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {
+    "@nx/js": "20.3.0",
+    "@swc-node/register": "~1.9.1",
+    "@swc/core": "~1.5.7",
+    "@swc/helpers": "~0.5.11",
+    "nx": "20.3.0",
+    "prettier": "^2.6.2",
+    "cross-env": "^7.0.3",
+    "tslib": "^2.3.0",
+    "typescript": "~5.6.2"
+  },
+  "workspaces": [
+    "libs/**",
+    "packages/**"
+  ]
+}

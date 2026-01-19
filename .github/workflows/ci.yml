@@ -26,18 +26,19 @@ jobs:
       # Uncomment this line to enable task distribution
       # - run: npx nx-cloud start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="build"
 
+      # Install pnpm
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
       # Cache node_modules
       - uses: actions/setup-node@v4
         with:
           node-version: 25
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - run: rm -rf node_modules package-lock.json
-      - run: npm install --package-lock-only
-      - run: npm ci --legacy-peer-deps
+      - run: pnpm install --frozen-lockfile
       - uses: nrwl/nx-set-shas@v4
-
-      - run: npm install aws-cdk-lib constructs
 
       # Prepend any command with "nx-cloud record --" to record its logs to Nx Cloud
       # - run: npx nx-cloud record -- echo Hello World

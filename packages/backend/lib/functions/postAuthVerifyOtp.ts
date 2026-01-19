@@ -51,7 +51,7 @@ export const handler = async (event: {
   if ((!body.phone && !body.email) || !body.code) {
     return {
       statusCode: 400,
-      body: 'Missing parameters',
+      body: `Missing parameters: code: ${!!body.code}, phone: ${!!body.phone}, email: ${!!body.email}`,
       headers: corsHeadersFromOrigin(origin, 'text/plain'),
     };
   }

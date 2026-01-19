@@ -51,7 +51,7 @@ export default function Layout({ children }: Props) {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Starter App
+            Shouldntve
           </Typography>
           {subject ? (
             <>
@@ -69,7 +69,7 @@ export default function Layout({ children }: Props) {
             </>
           ) : (
             <Button color="inherit" onClick={() => navigate('/login')}>
-              Sign In
+              Sign In to Shouldntve
             </Button>
           )}
         </Toolbar>

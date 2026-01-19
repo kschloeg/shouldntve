@@ -1,5 +1,5 @@
 {
-  "name": "@starter/source",
+  "name": "@shouldntve/root",
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
@@ -12,6 +12,7 @@
   "private": true,
   "dependencies": {},
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
     "@nx/js": "20.3.0",
     "@swc-node/register": "~1.9.1",
     "@swc/core": "~1.5.7",

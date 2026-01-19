@@ -62,7 +62,7 @@ export default function LoginPage() {
     <Layout>
       <Box sx={{ maxWidth: 600 }}>
         <Typography variant="h4" sx={{ mb: 2 }}>
-          Login
+          Login to Shouldntve
         </Typography>
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle1">By Email</Typography>

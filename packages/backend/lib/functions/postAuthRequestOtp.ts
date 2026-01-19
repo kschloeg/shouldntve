@@ -171,7 +171,7 @@ export const handler = async (event: {
     // send SMS or Email depending on input
     if (body.email) {
       const email = (body.email as string).trim();
-      const subject = 'Your login code';
+      const subject = 'Your shouldntve login code';
       const htmlBody = `<p>Your login code is: <strong>${otp}</strong></p>`;
       const textBody = `Your login code is: ${otp}`;
       if (!sesFromAddress) {

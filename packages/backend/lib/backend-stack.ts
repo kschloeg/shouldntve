@@ -301,5 +301,94 @@ export class BackendStack extends cdk.Stack {
       description: 'URL of the API Gateway',
       exportName: `${id}-RestApiUrl`,
     });
+
+    // Daily Sports Scores Lambda
+    const dailySportsScores = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'DailySportsScores',
+      {
+        entry: join(__dirname, 'functions', 'dailySportsScores.ts'),
+        handler: 'handler',
+        environment: {
+          RECIPIENT_EMAIL: process.env.SPORTS_RECIPIENT_EMAIL || 'kschloeg@gmail.com',
+          SES_FROM_ADDRESS: process.env.SES_FROM_ADDRESS || '',
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-ses'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(60),
+        memorySize: 512,
+      }
+    );
+
+    // Grant SES permissions to send emails
+    dailySportsScores.addToRolePolicy(
+      new cdk.aws_iam.PolicyStatement({
+        actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+        resources: ['*'],
+      })
+    );
+
+    // EventBridge rule to trigger daily at 4am CST (10am UTC)
+    const dailySportsRule = new cdk.aws_events.Rule(this, 'DailySportsScoresRule', {
+      schedule: cdk.aws_events.Schedule.cron({
+        minute: '0',
+        hour: '10', // 4am CST = 10am UTC
+        day: '*',
+        month: '*',
+        year: '*',
+      }),
+      description: 'Trigger daily sports scores check at 4am CST',
+    });
+
+    // Add Lambda as target for the rule
+    dailySportsRule.addTarget(
+      new cdk.aws_events_targets.LambdaFunction(dailySportsScores)
+    );
+
+    new cdk.CfnOutput(this, 'DailySportsScoresLambdaArn', {
+      value: dailySportsScores.functionArn,
+      description: 'ARN of the Daily Sports Scores Lambda',
+      exportName: `${id}-DailySportsScoresLambdaArn`,
+    });
+
+    // API endpoint to manually trigger sports scores
+    const postSportsScoresTrigger = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'TriggerSportsScores',
+      {
+        entry: join(__dirname, 'functions', 'postSportsScoresTrigger.ts'),
+        handler: 'handler',
+        environment: {
+          JWT_SECRET_ARN: jwtSecret.secretArn,
+          FRONTEND_ORIGIN: frontendOrigin,
+          SPORTS_LAMBDA_ARN: dailySportsScores.functionArn,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-lambda', '@aws-sdk/client-secrets-manager'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+      }
+    );
+    jwtSecret.grantRead(postSportsScoresTrigger);
+    dailySportsScores.grantInvoke(postSportsScoresTrigger);
+
+    const sportsResource = api.root.addResource('sports');
+    const triggerResource = sportsResource.addResource('trigger');
+    triggerResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+    triggerResource.addMethod(
+      'POST',
+      new cdk.aws_apigateway.LambdaIntegration(postSportsScoresTrigger, {
+        proxy: true,
+      })
+    );
   }
 }

@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 // removed unused imports
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import Button from '@mui/material/Button';
 import Layout from './Layout';
 import useAuth from '../hooks/useAuth';
 import { useSnackbar } from './snackbarContext';
@@ -24,6 +25,7 @@ export default function MainPage() {
   const [editFirstName, setEditFirstName] = React.useState('');
   const [editLastName, setEditLastName] = React.useState('');
   const [editPhone, setEditPhone] = React.useState('');
+  const [triggeringSports, setTriggeringSports] = React.useState(false);
   const { subject } = useAuth();
   const showSnackbar = useSnackbar();
 
@@ -91,10 +93,40 @@ export default function MainPage() {
     }
   };
 
+  const triggerSportsScores = async () => {
+    setTriggeringSports(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/sports/trigger`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        showSnackbar?.('Failed to trigger sports scores', 'error');
+        setTriggeringSports(false);
+        return;
+      }
+      showSnackbar?.('Sports scores email triggered! Check your inbox.', 'success');
+    } catch (e) {
+      console.error('triggerSportsScores error', e);
+      showSnackbar?.('Network error', 'error');
+    }
+    setTriggeringSports(false);
+  };
+
   return (
     <Layout>
       <Box>
-        <Typography variant="h4">Users</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h4">Users</Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={triggerSportsScores}
+            disabled={triggeringSports}
+          >
+            {triggeringSports ? 'Sending...' : 'Send MN Sports Scores'}
+          </Button>
+        </Box>
         {loading || !subject ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
             <CircularProgress />

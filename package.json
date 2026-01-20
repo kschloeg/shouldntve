@@ -10,16 +10,20 @@
     "node": ">=25"
   },
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "@balena/dockerignore": "^1.0.2",
+    "ignore": "^5.3.2",
+    "minimatch": "^9.0.3"
+  },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@nx/js": "20.3.0",
     "@swc-node/register": "~1.9.1",
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
+    "cross-env": "^7.0.3",
     "nx": "20.3.0",
     "prettier": "^2.6.2",
-    "cross-env": "^7.0.3",
     "tslib": "^2.3.0",
     "typescript": "~5.6.2"
   },

@@ -27,10 +27,6 @@
       "optional": false
     }
   },
-  "resolutions": {},
-  "overrides": {},
-  "browser": {},
-  "contributors": [],
   "license": "UNLICENSED",
   "devDependencies": {
     "@types/react": "^18.2.66",

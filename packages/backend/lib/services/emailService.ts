@@ -11,38 +11,21 @@ export class EmailService {
   }
 
   /**
-   * Generate HTML email content for game results
+   * Generate HTML email content for game results and upcoming games
    */
-  private generateEmailHtml(games: Game[], date: string): string {
-    if (games.length === 0) {
-      return `
-        <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background-color: #862334; color: white; padding: 20px; text-align: center; }
-              .content { padding: 20px; background-color: #f9f9f9; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>🏆 Minnesota Sports Scores</h1>
-              </div>
-              <div class="content">
-                <p>No Minnesota teams played on ${this.formatDate(date)}.</p>
-                <p>Check back tomorrow for the latest scores!</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
-    }
+  private generateEmailHtml(games: Game[], upcomingGames: Game[], date: string): string {
+    const gamesHtml = games.length > 0
+      ? games.map(game => this.generateGameHtml(game, false)).join('')
+      : '<div class="content"><p>No Minnesota teams played yesterday.</p></div>';
 
-    const gamesHtml = games
-      .map(game => this.generateGameHtml(game))
-      .join('');
+    const upcomingHtml = upcomingGames.length > 0
+      ? `
+        <div class="section-header">
+          <h2>📅 Upcoming Games (Next 24 Hours)</h2>
+        </div>
+        ${upcomingGames.map(game => this.generateGameHtml(game, true)).join('')}
+      `
+      : '';
 
     return `
       <html>
@@ -51,6 +34,8 @@ export class EmailService {
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
             .header { background-color: #862334; color: white; padding: 20px; text-align: center; }
+            .section-header { background-color: #f0f0f0; padding: 15px; margin: 20px 0 10px 0; border-radius: 8px; text-align: center; }
+            .section-header h2 { margin: 0; color: #862334; font-size: 20px; }
             .game { background-color: white; margin: 15px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
             .league-badge { background-color: #003f87; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
             .teams { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; }
@@ -59,17 +44,20 @@ export class EmailService {
             .score { font-size: 32px; font-weight: bold; color: #862334; }
             .vs { color: #666; font-size: 18px; margin: 0 10px; }
             .status { color: #666; font-size: 14px; margin-top: 10px; }
+            .game-time { color: #003f87; font-weight: bold; font-size: 14px; margin-top: 5px; }
             .winner { color: #00a651; }
             .loser { color: #c41e3a; }
+            .content { padding: 20px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>🏆 Minnesota Sports Scores</h1>
+              <h1>🏆 Minnesota Sports</h1>
               <p>${this.formatDate(date)}</p>
             </div>
             ${gamesHtml}
+            ${upcomingHtml}
           </div>
         </body>
       </html>
@@ -79,13 +67,17 @@ export class EmailService {
   /**
    * Generate HTML for a single game
    */
-  private generateGameHtml(game: Game): string {
+  private generateGameHtml(game: Game, isUpcoming: boolean): string {
     const isMinnesotaHome = this.isMinnesotaTeam(game.homeTeam.name);
     const homeWon = (game.homeTeam.score ?? 0) > (game.awayTeam.score ?? 0);
     const awayWon = (game.awayTeam.score ?? 0) > (game.homeTeam.score ?? 0);
 
     const homeClass = game.status === 'final' && homeWon ? 'winner' : (game.status === 'final' && awayWon ? 'loser' : '');
     const awayClass = game.status === 'final' && awayWon ? 'winner' : (game.status === 'final' && homeWon ? 'loser' : '');
+
+    const gameTimeHtml = isUpcoming
+      ? `<div class="game-time">${this.formatGameTime(game.date)}</div>`
+      : '';
 
     return `
       <div class="game">
@@ -102,6 +94,7 @@ export class EmailService {
           </div>
         </div>
         <div class="status">${this.getStatusText(game.status)}</div>
+        ${gameTimeHtml}
       </div>
     `;
   }
@@ -147,18 +140,42 @@ export class EmailService {
   }
 
   /**
-   * Send email with game results
+   * Format game time for display
+   */
+  private formatGameTime(dateStr: string): string {
+    const gameDate = new Date(dateStr);
+    return gameDate.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  }
+
+  /**
+   * Send email with game results and upcoming games
    */
   async sendScoresEmail(
     toAddress: string,
     games: Game[],
+    upcomingGames: Game[],
     date: string
   ): Promise<void> {
-    const subject = games.length > 0
-      ? `Minnesota Sports Scores - ${games.length} Game${games.length !== 1 ? 's' : ''}`
-      : 'Minnesota Sports Scores - No Games Today';
+    const parts = [];
+    if (games.length > 0) {
+      parts.push(`${games.length} Result${games.length !== 1 ? 's' : ''}`);
+    }
+    if (upcomingGames.length > 0) {
+      parts.push(`${upcomingGames.length} Upcoming`);
+    }
 
-    const htmlBody = this.generateEmailHtml(games, date);
+    const subject = parts.length > 0
+      ? `Minnesota Sports - ${parts.join(', ')}`
+      : 'Minnesota Sports - No Games';
+
+    const htmlBody = this.generateEmailHtml(games, upcomingGames, date);
 
     const command = new SendEmailCommand({
       Source: this.fromAddress,

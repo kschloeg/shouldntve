@@ -146,4 +146,55 @@ export class SportsApiClient {
 
     return `${year}${month}${day}`;
   }
+
+  /**
+   * Get today's date in YYYYMMDD format
+   */
+  getTodayDate(): string {
+    const today = new Date();
+
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+
+    return `${year}${month}${day}`;
+  }
+
+  /**
+   * Get tomorrow's date in YYYYMMDD format
+   */
+  getTomorrowDate(): string {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+
+    return `${year}${month}${day}`;
+  }
+
+  /**
+   * Fetch upcoming games (today and tomorrow)
+   */
+  async fetchUpcomingGames(): Promise<Game[]> {
+    const today = this.getTodayDate();
+    const tomorrow = this.getTomorrowDate();
+
+    const [todayGames, tomorrowGames] = await Promise.all([
+      this.fetchMinnesotaGames(today),
+      this.fetchMinnesotaGames(tomorrow),
+    ]);
+
+    const allGames = [...todayGames, ...tomorrowGames];
+
+    // Filter for scheduled games only (not completed or in progress from today)
+    return allGames.filter(game => {
+      const gameTime = new Date(game.date);
+      const now = new Date();
+      const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      return gameTime >= now && gameTime <= next24Hours && game.status === 'scheduled';
+    });
+  }
 }

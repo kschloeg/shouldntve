@@ -65,6 +65,16 @@ export class EmailService {
   }
 
   /**
+   * Format team record for display
+   */
+  private formatRecord(record?: { wins: number; losses: number; ties?: number }): string {
+    if (!record) return '';
+
+    const tiesStr = record.ties !== undefined ? `-${record.ties}` : '';
+    return ` (${record.wins}-${record.losses}${tiesStr})`;
+  }
+
+  /**
    * Generate HTML for a single game
    */
   private generateGameHtml(game: Game, isUpcoming: boolean): string {
@@ -75,6 +85,9 @@ export class EmailService {
     const homeClass = game.status === 'final' && homeWon ? 'winner' : (game.status === 'final' && awayWon ? 'loser' : '');
     const awayClass = game.status === 'final' && awayWon ? 'winner' : (game.status === 'final' && homeWon ? 'loser' : '');
 
+    const awayRecord = this.formatRecord(game.awayTeam.record);
+    const homeRecord = this.formatRecord(game.homeTeam.record);
+
     const gameTimeHtml = isUpcoming
       ? `<div class="game-time">${this.formatGameTime(game.date)}</div>`
       : '';
@@ -84,12 +97,12 @@ export class EmailService {
         <span class="league-badge">${game.league}</span>
         <div class="teams">
           <div class="team">
-            <div class="team-name ${awayClass}">${game.awayTeam.name}</div>
+            <div class="team-name ${awayClass}">${game.awayTeam.name}${awayRecord}</div>
             <div class="score">${game.awayTeam.score ?? '-'}</div>
           </div>
           <div class="vs">@</div>
           <div class="team">
-            <div class="team-name ${homeClass}">${game.homeTeam.name}</div>
+            <div class="team-name ${homeClass}">${game.homeTeam.name}${homeRecord}</div>
             <div class="score">${game.homeTeam.score ?? '-'}</div>
           </div>
         </div>

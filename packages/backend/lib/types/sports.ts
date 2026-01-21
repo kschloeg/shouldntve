@@ -7,6 +7,12 @@ export interface Team {
 
 export type League = 'NFL' | 'MLB' | 'NBA' | 'NHL' | 'WNBA' | 'MLS' | 'NCAAF' | 'NCAAB';
 
+export interface TeamRecord {
+  wins: number;
+  losses: number;
+  ties?: number;
+}
+
 export interface Game {
   id: string;
   date: string;
@@ -14,11 +20,13 @@ export interface Game {
     name: string;
     score?: number;
     abbreviation?: string;
+    record?: TeamRecord;
   };
   awayTeam: {
     name: string;
     score?: number;
     abbreviation?: string;
+    record?: TeamRecord;
   };
   status: 'scheduled' | 'in_progress' | 'final';
   league: League;

@@ -48,6 +48,28 @@ export class SportsApiClient {
   }
 
   /**
+   * Parse team record from ESPN data
+   */
+  private parseTeamRecord(competitor: any): { wins: number; losses: number; ties?: number } | undefined {
+    try {
+      const recordString = competitor?.records?.[0]?.summary;
+      if (!recordString) return undefined;
+
+      // Parse records like "10-5", "8-3-1", etc.
+      const parts = recordString.split('-').map((n: string) => parseInt(n));
+      if (parts.length < 2) return undefined;
+
+      return {
+        wins: parts[0] || 0,
+        losses: parts[1] || 0,
+        ties: parts[2] || undefined,
+      };
+    } catch (error) {
+      return undefined;
+    }
+  }
+
+  /**
    * Parse ESPN API response into our Game format
    */
   private parseEspnResponse(data: any, league: League): Game[] {
@@ -67,11 +89,13 @@ export class SportsApiClient {
           name: homeTeam?.team?.displayName || 'Unknown',
           abbreviation: homeTeam?.team?.abbreviation,
           score: parseInt(homeTeam?.score) || undefined,
+          record: this.parseTeamRecord(homeTeam),
         },
         awayTeam: {
           name: awayTeam?.team?.displayName || 'Unknown',
           abbreviation: awayTeam?.team?.abbreviation,
           score: parseInt(awayTeam?.score) || undefined,
+          record: this.parseTeamRecord(awayTeam),
         },
         status: this.parseStatus(competition?.status?.type?.state),
         league,

@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-import { corsHeadersFromOrigin } from '../utils/cors';
-import { getSubjectFromHeaders } from '../utils/authHelpers';
+import { corsHeadersFromOrigin } from '../../utils/cors';
+import { getSubjectFromHeaders } from '../../utils/authHelpers';
 
 /**
  * API endpoint to manually trigger the daily sports scores Lambda

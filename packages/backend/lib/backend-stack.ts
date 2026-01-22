@@ -307,7 +307,7 @@ export class BackendStack extends cdk.Stack {
       this,
       'DailySportsScores',
       {
-        entry: join(__dirname, 'functions', 'dailySportsScores.ts'),
+        entry: join(__dirname, 'sports', 'functions', 'dailySportsScores.ts'),
         handler: 'handler',
         environment: {
           RECIPIENT_EMAIL: process.env.SPORTS_RECIPIENT_EMAIL || 'kschloeg@gmail.com',
@@ -359,7 +359,7 @@ export class BackendStack extends cdk.Stack {
       this,
       'TriggerSportsScores',
       {
-        entry: join(__dirname, 'functions', 'postSportsScoresTrigger.ts'),
+        entry: join(__dirname, 'sports', 'functions', 'postSportsScoresTrigger.ts'),
         handler: 'handler',
         environment: {
           JWT_SECRET_ARN: jwtSecret.secretArn,

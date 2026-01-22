@@ -153,7 +153,7 @@ export class EmailService {
   }
 
   /**
-   * Format game time for display
+   * Format game time for display in Central Time
    */
   private formatGameTime(dateStr: string): string {
     const gameDate = new Date(dateStr);
@@ -163,6 +163,7 @@ export class EmailService {
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: 'America/Chicago',
       timeZoneName: 'short'
     });
   }

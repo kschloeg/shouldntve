@@ -390,5 +390,38 @@ export class BackendStack extends cdk.Stack {
         proxy: true,
       })
     );
+
+    // Polymarket search endpoint
+    const getPolymarketSearch = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'GetPolymarketSearch',
+      {
+        entry: join(__dirname, 'polymarket', 'functions', 'getPolymarketSearch.ts'),
+        handler: 'handler',
+        environment: {
+          FRONTEND_ORIGIN: frontendOrigin,
+        },
+        bundling: {
+          minify: true,
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
+
+    const polymarketResource = api.root.addResource('polymarket');
+    const searchResource = polymarketResource.addResource('search');
+    searchResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+    searchResource.addMethod(
+      'GET',
+      new cdk.aws_apigateway.LambdaIntegration(getPolymarketSearch, {
+        proxy: true,
+      })
+    );
   }
 }

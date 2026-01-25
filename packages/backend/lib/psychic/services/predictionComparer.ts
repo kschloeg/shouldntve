@@ -10,7 +10,7 @@ import { PsychicPicture } from '../types/psychic';
  */
 export class PredictionComparer {
   private anthropic: Anthropic;
-  private static readonly VERSION = '1.0.3'; // Increment this with each change
+  private static readonly VERSION = '1.0.4'; // Increment this with each change
 
   constructor(apiKey?: string) {
     console.log(`[PredictionComparer v${PredictionComparer.VERSION}] Initializing`);
@@ -103,10 +103,16 @@ Respond in JSON format:
 {
   "matchedPictureId": "picture1" | "picture2" | null,
   "confidenceScore": number (0-100),
-  "reasoning": "Explain WHY this matches or doesn't match, focusing on salient features",
+  "reasoning": "Explain WHY this matches one picture AND why it doesn't match the other. Be explicit about what salient features are present in the matched picture and absent/different in the non-matched picture.",
   "picture1Analysis": "Brief analysis of picture 1's salient features",
   "picture2Analysis": "Brief analysis of picture 2's salient features"
-}`;
+}
+
+IMPORTANT: In the reasoning field, always explain BOTH:
+1. Why the matched picture matches (what salient features align with the prediction)
+2. Why the OTHER picture doesn't match (what features are missing or different)
+
+If no match, explain why NEITHER picture matches the prediction.`;
 
     // Prepare content blocks
     const content: Anthropic.MessageParam[] = [];

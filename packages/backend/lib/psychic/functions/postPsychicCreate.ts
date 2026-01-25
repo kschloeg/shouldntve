@@ -9,7 +9,7 @@ import { corsHeadersFromOrigin, getRequestOrigin } from '../../utils/cors';
  *
  * Creates a new psychic prediction session by:
  * 1. Fetching two dissimilar random pictures
- * 2. Randomly assigning each picture to one of the two teams
+ * 2. Assigning picture1 to team1 and picture2 to team2
  * 3. Storing the prediction in the database
  *
  * Request body:
@@ -54,9 +54,8 @@ export const handler = async (
       usedPictureIds
     );
 
-    // Randomly assign pictures to teams
-    const randomAssignment = Math.random() < 0.5;
-    const team1PictureId = randomAssignment ? picture1.id : picture2.id;
+    // Assign picture1 to team1, picture2 to team2
+    const team1PictureId = picture1.id;
 
     // Store the prediction
     const store = new PredictionStore(process.env.TABLE_NAME || '');

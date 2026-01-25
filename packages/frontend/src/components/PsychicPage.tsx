@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -15,6 +15,17 @@ import StepLabel from '@mui/material/StepLabel';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import IconButton from '@mui/material/IconButton';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import Layout from './Layout';
 import { useSnackbar } from './snackbarContext';
 
@@ -57,23 +68,18 @@ export default function PsychicPage() {
   const [team1, setTeam1] = useState('');
   const [team2, setTeam2] = useState('');
   const [prediction, setPrediction] = useState<PsychicPrediction | null>(null);
+  const [predictions, setPredictions] = useState<PsychicPrediction[]>([]);
   const [predictionText, setPredictionText] = useState('');
   const [winningTeam, setWinningTeam] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
   const showSnackbar = useSnackbar();
 
-  // Load prediction if predictionId is in URL
-  useEffect(() => {
-    if (predictionId) {
-      loadPrediction(predictionId);
-    }
-  }, [predictionId]);
-
-  const loadPrediction = async (id: string) => {
-    setLoading(true);
+  const loadPredictions = useCallback(async () => {
+    setLoadingPredictions(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/psychic/${id}`,
+        `${import.meta.env.VITE_API_URL}/psychic?limit=50`,
         {
           method: 'GET',
           credentials: 'include',
@@ -81,29 +87,67 @@ export default function PsychicPage() {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to load prediction');
+        throw new Error('Failed to load predictions');
       }
 
       const data = await response.json();
-      setPrediction(data.prediction);
-
-      // Set the appropriate step based on prediction status
-      if (data.prediction.status === 'created') {
-        setActiveStep(1);
-      } else if (data.prediction.status === 'prediction_made' || data.prediction.status === 'revealed') {
-        setActiveStep(2);
-        setPredictionText(data.prediction.predictionText || '');
-        if (data.prediction.status === 'revealed') {
-          setWinningTeam(data.prediction.winningTeam || '');
-        }
-      }
+      setPredictions(data.predictions || []);
     } catch (error) {
-      console.error('Error loading prediction:', error);
-      showSnackbar?.('Failed to load prediction', 'error');
+      console.error('Error loading predictions:', error);
+      showSnackbar?.('Failed to load predictions', 'error');
     } finally {
-      setLoading(false);
+      setLoadingPredictions(false);
     }
-  };
+  }, [showSnackbar]);
+
+  // Load prediction if predictionId is in URL
+  useEffect(() => {
+    const loadPrediction = async (id: string) => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/psychic/${id}`,
+          {
+            method: 'GET',
+            credentials: 'include',
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to load prediction');
+        }
+
+        const data = await response.json();
+        setPrediction(data.prediction);
+
+        // Set the appropriate step based on prediction status
+        if (data.prediction.status === 'created') {
+          setActiveStep(1);
+        } else if (
+          data.prediction.status === 'prediction_made' ||
+          data.prediction.status === 'revealed'
+        ) {
+          setActiveStep(2);
+          setPredictionText(data.prediction.predictionText || '');
+          if (data.prediction.status === 'revealed') {
+            setWinningTeam(data.prediction.winningTeam || '');
+          }
+        }
+      } catch (error) {
+        console.error('Error loading prediction:', error);
+        showSnackbar?.('Failed to load prediction', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (predictionId) {
+      loadPrediction(predictionId);
+    } else {
+      // Load list of predictions when on main page
+      loadPredictions();
+    }
+  }, [loadPredictions, predictionId, showSnackbar]);
 
   // Step 1: Create a new prediction
   const handleCreatePrediction = async () => {
@@ -254,6 +298,33 @@ export default function PsychicPage() {
     setPredictionText('');
     setWinningTeam('');
     navigate('/psychic');
+    loadPredictions();
+  };
+
+  const handleDeletePrediction = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this prediction?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/psychic/${id}`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete prediction');
+      }
+
+      showSnackbar?.('Prediction deleted', 'success');
+      loadPredictions();
+    } catch (error) {
+      console.error('Error deleting prediction:', error);
+      showSnackbar?.('Failed to delete prediction', 'error');
+    }
   };
 
   const copyPredictionUrl = () => {
@@ -290,51 +361,145 @@ export default function PsychicPage() {
           ))}
         </Stepper>
 
-        {/* Step 1: Create Prediction */}
+        {/* Step 0: Create Prediction + List */}
         {activeStep === 0 && (
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Enter the two competing teams
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Team 1"
-                    variant="outlined"
-                    value={team1}
-                    onChange={(e) => setTeam1(e.target.value)}
-                    placeholder="e.g., Minnesota Vikings"
-                  />
+          <Box>
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  Enter the two competing teams
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Team 1"
+                      variant="outlined"
+                      value={team1}
+                      onChange={(e) => setTeam1(e.target.value)}
+                      placeholder="e.g., Minnesota Vikings"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Team 2"
+                      variant="outlined"
+                      value={team2}
+                      onChange={(e) => setTeam2(e.target.value)}
+                      placeholder="e.g., Green Bay Packers"
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      variant="contained"
+                      onClick={handleCreatePrediction}
+                      disabled={loading || !team1 || !team2}
+                      sx={{ mt: 2 }}
+                    >
+                      {loading ? (
+                        <CircularProgress size={24} />
+                      ) : (
+                        'Create Prediction'
+                      )}
+                    </Button>
+                  </Grid>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Team 2"
-                    variant="outlined"
-                    value={team2}
-                    onChange={(e) => setTeam2(e.target.value)}
-                    placeholder="e.g., Green Bay Packers"
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <Button
-                    variant="contained"
-                    onClick={handleCreatePrediction}
-                    disabled={loading || !team1 || !team2}
-                    sx={{ mt: 2 }}
-                  >
-                    {loading ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      'Create Prediction'
-                    )}
-                  </Button>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Previous Predictions Table */}
+            <Card>
+              <CardContent>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  Previous Predictions
+                </Typography>
+                {loadingPredictions ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : predictions.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No predictions yet. Create one above to get started.
+                  </Typography>
+                ) : (
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>ID</TableCell>
+                          <TableCell>Teams</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Matched Team</TableCell>
+                          <TableCell>Created</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {predictions.map((pred) => (
+                          <TableRow key={pred.id}>
+                            <TableCell
+                              sx={{
+                                fontFamily: 'monospace',
+                                fontSize: '0.85rem',
+                              }}
+                            >
+                              {pred.id.substring(0, 20)}...
+                            </TableCell>
+                            <TableCell>
+                              {pred.team1} vs {pred.team2}
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={pred.status}
+                                size="small"
+                                color={
+                                  pred.status === 'revealed'
+                                    ? 'success'
+                                    : pred.status === 'prediction_made'
+                                    ? 'primary'
+                                    : 'default'
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>{pred.matchedTeam || '-'}</TableCell>
+                            <TableCell>
+                              {new Date(pred.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                size="small"
+                                onClick={() => navigate(`/psychic/${pred.id}`)}
+                                title="View"
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  navigate(`/psychic/${pred.id}/edit`)
+                                }
+                                title="Test Prediction"
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeletePrediction(pred.id)}
+                                title="Delete"
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
         )}
 
         {/* Step 2: Make Prediction */}
@@ -454,10 +619,15 @@ export default function PsychicPage() {
         {/* Step 3: Reveal */}
         {activeStep === 2 && prediction && (
           <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Prediction: {prediction.id}
-              </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 2,
+              }}
+            >
+              <Typography variant="h6">Prediction: {prediction.id}</Typography>
               <Button
                 variant="outlined"
                 size="small"
@@ -484,13 +654,19 @@ export default function PsychicPage() {
                         {prediction.reasoning}
                       </Typography>
                       {prediction.picture1Analysis && (
-                        <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                          <strong>Picture 1:</strong> {prediction.picture1Analysis}
+                        <Typography
+                          variant="caption"
+                          display="block"
+                          sx={{ mb: 1 }}
+                        >
+                          <strong>Picture 1:</strong>{' '}
+                          {prediction.picture1Analysis}
                         </Typography>
                       )}
                       {prediction.picture2Analysis && (
                         <Typography variant="caption" display="block">
-                          <strong>Picture 2:</strong> {prediction.picture2Analysis}
+                          <strong>Picture 2:</strong>{' '}
+                          {prediction.picture2Analysis}
                         </Typography>
                       )}
                     </CardContent>
@@ -515,13 +691,19 @@ export default function PsychicPage() {
                         {prediction.reasoning}
                       </Typography>
                       {prediction.picture1Analysis && (
-                        <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                          <strong>Picture 1:</strong> {prediction.picture1Analysis}
+                        <Typography
+                          variant="caption"
+                          display="block"
+                          sx={{ mb: 1 }}
+                        >
+                          <strong>Picture 1:</strong>{' '}
+                          {prediction.picture1Analysis}
                         </Typography>
                       )}
                       {prediction.picture2Analysis && (
                         <Typography variant="caption" display="block">
-                          <strong>Picture 2:</strong> {prediction.picture2Analysis}
+                          <strong>Picture 2:</strong>{' '}
+                          {prediction.picture2Analysis}
                         </Typography>
                       )}
                     </CardContent>

@@ -17,7 +17,7 @@ import { corsHeadersFromOrigin, getRequestOrigin } from '../../utils/cors';
  *   "predictionSketchUrl": "https://..." // optional
  * }
  */
-const VERSION = '1.0.3'; // Increment this with each deploy
+const VERSION = '1.0.4'; // Increment this with each deploy
 
 export const handler = async (
   event: APIGatewayProxyEvent

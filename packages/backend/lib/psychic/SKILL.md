@@ -1,0 +1,248 @@
+# Psychic Prediction System - SKILL.md
+
+## Overview
+
+This system tests psychic prediction abilities using a controlled double-blind protocol. The core concept is that a psychic attempts to describe a picture they will be shown in the future, without knowing which picture corresponds to which outcome.
+
+## How It Works
+
+### The Protocol
+
+1. **Setup Phase** (Create Prediction):
+   - A bettor provides two team names that will compete in an event
+   - The system randomly selects two dissimilar pictures from Pexels API
+   - Pictures are validated to ensure they differ significantly in:
+     - Color (at least 30% difference in average color)
+     - Subject matter (less than 50% word overlap in descriptions)
+   - The system randomly assigns one picture to each team
+   - The assignment is stored but hidden from the psychic
+
+2. **Prediction Phase** (Submit Prediction):
+   - The psychic (without seeing the pictures) describes the picture they will be shown
+   - The psychic can provide:
+     - Text description
+     - A sketch/drawing (uploaded image)
+     - Both
+   - The system uses Claude AI to compare the prediction against both pictures
+   - If the prediction significantly matches one picture over the other, that picture's team is returned
+   - Otherwise, "no match" is returned
+
+3. **Reveal Phase** (After Event):
+   - After the sporting event completes, the bettor enters which team won
+   - The system reveals the picture that was assigned to the winning team
+   - This happens regardless of whether the prediction was successful
+   - The bettor can then verify if the psychic's description matched the revealed picture
+
+### Key Design Principles
+
+- **Double-blind**: The psychic doesn't know which picture corresponds to which team until after the event
+- **Random assignment**: Pictures are randomly assigned to teams to prevent bias
+- **Dissimilarity enforcement**: Pictures must be significantly different to make matching meaningful
+- **Objective comparison**: Claude AI provides unbiased comparison between prediction and pictures
+
+## File Structure
+
+```
+packages/backend/lib/psychic/
+├── SKILL.md                          # This file - documentation for LLM sessions
+├── types/
+│   └── psychic.ts                    # TypeScript interfaces and types
+├── services/
+│   ├── pictureApiClient.ts           # Fetches random pictures from Pexels
+│   ├── predictionComparer.ts         # Compares predictions with pictures using Claude
+│   └── predictionStore.ts            # Stores predictions in DynamoDB
+└── functions/
+    ├── postPsychicCreate.ts          # POST /psychic/create - create new prediction
+    ├── postPsychicPredict.ts         # POST /psychic/predict - submit psychic guess
+    ├── postPsychicReveal.ts          # POST /psychic/reveal - reveal winning picture
+    ├── getPsychic.ts                 # GET /psychic/{id} - get specific prediction
+    └── getPsychicList.ts             # GET /psychic - list predictions
+```
+
+## API Endpoints
+
+### POST /psychic/create
+
+Creates a new prediction session.
+
+**Request:**
+```json
+{
+  "team1": "Minnesota Vikings",
+  "team2": "Green Bay Packers"
+}
+```
+
+**Response:**
+```json
+{
+  "prediction": {
+    "id": "pred_1234567890_abc123",
+    "createdAt": "2025-01-24T12:00:00Z",
+    "status": "created",
+    "team1": "Minnesota Vikings",
+    "team2": "Green Bay Packers",
+    "picture1": {
+      "id": "12345",
+      "url": "https://...",
+      "description": "Mountain landscape at sunset",
+      "avgColor": "#FF5733"
+    },
+    "picture2": {
+      "id": "67890",
+      "url": "https://...",
+      "description": "Ocean waves on beach",
+      "avgColor": "#3498DB"
+    },
+    "team1PictureId": "12345"  // Hidden from psychic until reveal
+  }
+}
+```
+
+### POST /psychic/predict
+
+Submits the psychic's prediction and gets comparison result.
+
+**Request:**
+```json
+{
+  "predictionId": "pred_1234567890_abc123",
+  "predictionText": "I see mountains with warm orange and red colors, like a sunset. There's a sense of height and elevation.",
+  "predictionSketchUrl": "https://..." // optional
+}
+```
+
+**Response:**
+```json
+{
+  "prediction": {
+    "id": "pred_1234567890_abc123",
+    "status": "prediction_made",
+    "matchedTeam": "Minnesota Vikings",  // or null if no match
+    "confidenceScore": 85,
+    "predictionText": "I see mountains with...",
+    // ... rest of prediction data
+  }
+}
+```
+
+The `matchedTeam` field will be:
+- Team name (e.g., "Minnesota Vikings") if there's a significant match
+- `null` if no significant match is found
+
+### POST /psychic/reveal
+
+Reveals the picture for the winning team after the event.
+
+**Request:**
+```json
+{
+  "predictionId": "pred_1234567890_abc123",
+  "winningTeam": "Minnesota Vikings"
+}
+```
+
+**Response:**
+```json
+{
+  "prediction": {
+    "id": "pred_1234567890_abc123",
+    "status": "revealed",
+    "winningTeam": "Minnesota Vikings",
+    "revealedPictureId": "12345",
+    // ... includes full prediction history
+  }
+}
+```
+
+### GET /psychic/{predictionId}
+
+Retrieves a specific prediction. Note: The `team1PictureId` assignment is hidden until after reveal.
+
+### GET /psychic?limit=50
+
+Lists recent predictions.
+
+## LLM Instructions for Using This System
+
+### When Asked to Compare Predictions
+
+If an LLM session needs to compare a psychic's description/sketch with pictures:
+
+1. **Read the prediction data** to get:
+   - The psychic's text description
+   - The sketch URL (if provided)
+   - The two picture URLs and descriptions
+
+2. **Use Claude's vision capabilities** to:
+   - View both pictures
+   - View the sketch (if provided)
+   - Analyze the text description
+   - Compare all elements
+
+3. **Apply strict matching criteria**:
+   - Generic descriptions (e.g., "colorful", "bright") do NOT constitute a match
+   - Specific details matter: colors, objects, composition, subjects, settings
+   - The prediction must describe elements clearly present in ONE picture but not the other
+   - Vague matches should return "no match"
+
+4. **Return structured result**:
+   ```json
+   {
+     "matchedPictureId": "picture1" | "picture2" | null,
+     "confidenceScore": 0-100,
+     "reasoning": "Brief explanation of why this is/isn't a match"
+   }
+   ```
+
+### Environment Variables Needed
+
+- `PEXELS_API_KEY`: API key for Pexels (get from https://www.pexels.com/api/)
+- `ANTHROPIC_API_KEY`: API key for Claude (for prediction comparison)
+- `TABLE_NAME`: DynamoDB table name for storing predictions
+
+### Database Schema
+
+The system uses DynamoDB with the following structure:
+
+**Primary Key:**
+- `PK`: `PREDICTION#{predictionId}`
+- `SK`: `METADATA`
+
+**GSI1 (for listing):**
+- `GSI1PK`: `PREDICTIONS`
+- `GSI1SK`: `{createdAt}#{predictionId}`
+
+### Testing the System Locally
+
+To test prediction comparison logic:
+
+```typescript
+import { PredictionComparer } from './services/predictionComparer';
+
+const comparer = new PredictionComparer();
+const result = await comparer.comparePrediction(
+  "I see a mountain with sunset colors",
+  undefined, // no sketch
+  picture1,
+  picture2
+);
+
+console.log(result);
+// { matchedPictureId: "12345", confidenceScore: 85 }
+```
+
+## Future Enhancements
+
+1. **Picture History**: Track used pictures to avoid reusing them in subsequent predictions
+2. **Better Dissimilarity Checking**: Use AI to compare semantic similarity of images
+3. **Sketch Upload**: Implement direct sketch upload functionality in frontend
+4. **Statistics**: Track success rate of predictions over time
+5. **Multiple Psychics**: Support multiple users making predictions on the same event
+
+## Important Notes
+
+- Pictures are fetched from Pexels which requires attribution
+- The Anthropic API is used for sophisticated image comparison
+- All predictions are stored permanently for future analysis
+- The system is designed for single-person testing (psychic and bettor are the same person)

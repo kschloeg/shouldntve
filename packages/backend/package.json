@@ -28,11 +28,13 @@
     "typescript": "~5.4.3"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@aws-sdk/client-dynamodb": "^3.540.0",
     "@aws-sdk/client-lambda": "^3.971.0",
     "@aws-sdk/client-secrets-manager": "^3.540.0",
     "@aws-sdk/client-ses": "^3.540.0",
     "@aws-sdk/client-sns": "^3.540.0",
+    "@aws-sdk/lib-dynamodb": "^3.540.0",
     "aws-cdk-lib": "^2.178.0",
     "constructs": "^10.0.0",
     "dotenv": "^10.0.0",

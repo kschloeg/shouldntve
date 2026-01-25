@@ -5,7 +5,9 @@ import {
   GetCommand,
   UpdateCommand,
   QueryCommand,
+  DeleteCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { v4 as uuidv4 } from 'uuid';
 import { PsychicPrediction, PredictionStatus } from '../types/psychic';
 
 /**
@@ -22,10 +24,10 @@ export class PredictionStore {
   }
 
   /**
-   * Generate a unique prediction ID
+   * Generate a unique prediction ID using UUID v4
    */
   private generatePredictionId(): string {
-    return `pred_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    return uuidv4();
   }
 
   /**
@@ -49,6 +51,8 @@ export class PredictionStore {
         Item: {
           PK: `PREDICTION#${id}`,
           SK: `METADATA`,
+          GSI1PK: 'PREDICTIONS',
+          GSI1SK: `${now}#${id}`,
           ...newPrediction,
         },
       })
@@ -87,7 +91,10 @@ export class PredictionStore {
     predictionText: string | undefined,
     predictionSketchUrl: string | undefined,
     matchedTeam: string | undefined,
-    confidenceScore: number
+    confidenceScore: number,
+    reasoning?: string,
+    picture1Analysis?: string,
+    picture2Analysis?: string
   ): Promise<void> {
     const now = new Date().toISOString();
 
@@ -101,6 +108,7 @@ export class PredictionStore {
         UpdateExpression:
           'SET #status = :status, predictionText = :predictionText, predictionSketchUrl = :predictionSketchUrl, ' +
           'predictionTimestamp = :predictionTimestamp, matchedTeam = :matchedTeam, confidenceScore = :confidenceScore, ' +
+          'reasoning = :reasoning, picture1Analysis = :picture1Analysis, picture2Analysis = :picture2Analysis, ' +
           'updatedAt = :updatedAt',
         ExpressionAttributeNames: {
           '#status': 'status',
@@ -112,6 +120,9 @@ export class PredictionStore {
           ':predictionTimestamp': now,
           ':matchedTeam': matchedTeam || null,
           ':confidenceScore': confidenceScore,
+          ':reasoning': reasoning || null,
+          ':picture1Analysis': picture1Analysis || null,
+          ':picture2Analysis': picture2Analysis || null,
           ':updatedAt': now,
         },
       })
@@ -147,6 +158,21 @@ export class PredictionStore {
           ':revealedPictureId': revealedPictureId,
           ':revealTimestamp': now,
           ':updatedAt': now,
+        },
+      })
+    );
+  }
+
+  /**
+   * Delete a prediction
+   */
+  async deletePrediction(predictionId: string): Promise<void> {
+    await this.docClient.send(
+      new DeleteCommand({
+        TableName: this.tableName,
+        Key: {
+          PK: `PREDICTION#${predictionId}`,
+          SK: `METADATA`,
         },
       })
     );

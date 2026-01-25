@@ -486,7 +486,7 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@anthropic-ai/sdk'],
+          externalModules: ['@aws-sdk/client-dynamodb'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(60),
@@ -556,6 +556,49 @@ export class BackendStack extends cdk.Stack {
       }
     );
     psychicTable.grantReadData(getPsychicList);
+
+    // DELETE /psychic/{predictionId}
+    const deletePsychic = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'DeletePsychic',
+      {
+        entry: join(__dirname, 'psychic', 'functions', 'deletePsychic.ts'),
+        handler: 'handler',
+        environment: {
+          TABLE_NAME: psychicTable.tableName,
+          FRONTEND_ORIGIN: frontendOrigin,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-dynamodb'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
+    psychicTable.grantReadWriteData(deletePsychic);
+
+    // POST /psychic/{predictionId}/test
+    const postPsychicTest = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'PostPsychicTest',
+      {
+        entry: join(__dirname, 'psychic', 'functions', 'postPsychicTest.ts'),
+        handler: 'handler',
+        environment: {
+          TABLE_NAME: psychicTable.tableName,
+          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+          FRONTEND_ORIGIN: frontendOrigin,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-dynamodb'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(60),
+      }
+    );
+    psychicTable.grantReadData(postPsychicTest);
 
     // Set up API Gateway resources
     const psychicResource = api.root.addResource('psychic');
@@ -630,6 +673,29 @@ export class BackendStack extends cdk.Stack {
     predictionIdResource.addMethod(
       'GET',
       new cdk.aws_apigateway.LambdaIntegration(getPsychic, {
+        proxy: true,
+      })
+    );
+
+    // DELETE /psychic/{predictionId}
+    predictionIdResource.addMethod(
+      'DELETE',
+      new cdk.aws_apigateway.LambdaIntegration(deletePsychic, {
+        proxy: true,
+      })
+    );
+
+    // POST /psychic/{predictionId}/test
+    const testResource = predictionIdResource.addResource('test');
+    testResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+    testResource.addMethod(
+      'POST',
+      new cdk.aws_apigateway.LambdaIntegration(postPsychicTest, {
         proxy: true,
       })
     );

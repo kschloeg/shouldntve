@@ -180,18 +180,27 @@ If an LLM session needs to compare a psychic's description/sketch with pictures:
    - Analyze the text description
    - Compare all elements
 
-3. **Apply strict matching criteria**:
-   - Generic descriptions (e.g., "colorful", "bright") do NOT constitute a match
-   - Specific details matter: colors, objects, composition, subjects, settings
-   - The prediction must describe elements clearly present in ONE picture but not the other
-   - Vague matches should return "no match"
+3. **Apply SALIENT FEATURES matching criteria**:
+   - **SALIENT FEATURES** are the most visually striking and memorable aspects:
+     - Dominant colors that stand out (e.g., "bright orange" in a dark scene)
+     - High contrast elements (e.g., "black and orange")
+     - Unusual or distinctive objects
+     - Strong compositional elements
+   - **COLOR DESCRIPTIONS** count as significant matches when:
+     - They describe dominant or striking colors that are visually salient
+     - They describe color combinations or contrasts (e.g., "orange and black")
+     - One picture has these colors prominently, the other does not
+   - The prediction must describe SALIENT features clearly present in ONE picture but not the other
+   - Only reject as too vague if extremely generic (e.g., just "colorful" or "nice")
 
 4. **Return structured result**:
    ```json
    {
      "matchedPictureId": "picture1" | "picture2" | null,
      "confidenceScore": 0-100,
-     "reasoning": "Brief explanation of why this is/isn't a match"
+     "reasoning": "Explain WHY this matches or doesn't match, focusing on salient features",
+     "picture1Analysis": "Brief analysis of picture 1's salient features",
+     "picture2Analysis": "Brief analysis of picture 2's salient features"
    }
    ```
 

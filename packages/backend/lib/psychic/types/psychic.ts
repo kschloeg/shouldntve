@@ -57,6 +57,9 @@ export interface PsychicPrediction {
   // Comparison result
   matchedTeam?: string; // team1 or team2, or undefined if no match
   confidenceScore?: number; // 0-100
+  reasoning?: string; // Why this matched or didn't match
+  picture1Analysis?: string; // Analysis of picture 1's salient features
+  picture2Analysis?: string; // Analysis of picture 2's salient features
 
   // Final reveal
   winningTeam?: string;

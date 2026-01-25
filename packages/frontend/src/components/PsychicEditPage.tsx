@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiFetch } from '../utils/apiClient';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -56,11 +57,10 @@ export default function PsychicEditPage() {
     const loadPrediction = async (id: string) => {
       setLoadingPrediction(true);
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${import.meta.env.VITE_API_URL}/psychic/${id}`,
           {
             method: 'GET',
-            credentials: 'include',
           }
         );
 
@@ -97,11 +97,10 @@ export default function PsychicEditPage() {
     setLoading(true);
     setTestResult(null);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${import.meta.env.VITE_API_URL}/psychic/${prediction.id}/test`,
         {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },

@@ -92,6 +92,9 @@ export default function Layout({ children }: Props) {
             <ListItem button onClick={() => navigate('/polymarket')}>
               <ListItemText primary="Polymarket" />
             </ListItem>
+            <ListItem button onClick={() => navigate('/psychic')}>
+              <ListItemText primary="Psychic" />
+            </ListItem>
             <ListItem button onClick={() => navigate('/login')}>
               <ListItemText primary="Login" />
             </ListItem>

@@ -423,5 +423,215 @@ export class BackendStack extends cdk.Stack {
         proxy: true,
       })
     );
+
+    // Psychic prediction endpoints
+    const psychicTable = new cdk.aws_dynamodb.Table(this, 'PsychicPredictionsTable', {
+      partitionKey: {
+        name: 'PK',
+        type: cdk.aws_dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'SK',
+        type: cdk.aws_dynamodb.AttributeType.STRING,
+      },
+      billingMode: cdk.aws_dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
+
+    // Add GSI for listing predictions
+    psychicTable.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: {
+        name: 'GSI1PK',
+        type: cdk.aws_dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI1SK',
+        type: cdk.aws_dynamodb.AttributeType.STRING,
+      },
+    });
+
+    // POST /psychic/create
+    const postPsychicCreate = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'PostPsychicCreate',
+      {
+        entry: join(__dirname, 'psychic', 'functions', 'postPsychicCreate.ts'),
+        handler: 'handler',
+        environment: {
+          TABLE_NAME: psychicTable.tableName,
+          PEXELS_API_KEY: process.env.PEXELS_API_KEY || '',
+          FRONTEND_ORIGIN: frontendOrigin,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-dynamodb'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
+    psychicTable.grantWriteData(postPsychicCreate);
+
+    // POST /psychic/predict
+    const postPsychicPredict = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'PostPsychicPredict',
+      {
+        entry: join(__dirname, 'psychic', 'functions', 'postPsychicPredict.ts'),
+        handler: 'handler',
+        environment: {
+          TABLE_NAME: psychicTable.tableName,
+          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+          FRONTEND_ORIGIN: frontendOrigin,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-dynamodb', '@anthropic-ai/sdk'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(60),
+      }
+    );
+    psychicTable.grantReadWriteData(postPsychicPredict);
+
+    // POST /psychic/reveal
+    const postPsychicReveal = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'PostPsychicReveal',
+      {
+        entry: join(__dirname, 'psychic', 'functions', 'postPsychicReveal.ts'),
+        handler: 'handler',
+        environment: {
+          TABLE_NAME: psychicTable.tableName,
+          FRONTEND_ORIGIN: frontendOrigin,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-dynamodb'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
+    psychicTable.grantReadWriteData(postPsychicReveal);
+
+    // GET /psychic/{predictionId}
+    const getPsychic = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'GetPsychic',
+      {
+        entry: join(__dirname, 'psychic', 'functions', 'getPsychic.ts'),
+        handler: 'handler',
+        environment: {
+          TABLE_NAME: psychicTable.tableName,
+          FRONTEND_ORIGIN: frontendOrigin,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-dynamodb'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
+    psychicTable.grantReadData(getPsychic);
+
+    // GET /psychic
+    const getPsychicList = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'GetPsychicList',
+      {
+        entry: join(__dirname, 'psychic', 'functions', 'getPsychicList.ts'),
+        handler: 'handler',
+        environment: {
+          TABLE_NAME: psychicTable.tableName,
+          FRONTEND_ORIGIN: frontendOrigin,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-dynamodb'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
+    psychicTable.grantReadData(getPsychicList);
+
+    // Set up API Gateway resources
+    const psychicResource = api.root.addResource('psychic');
+    psychicResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+
+    // POST /psychic/create
+    const createResource = psychicResource.addResource('create');
+    createResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+    createResource.addMethod(
+      'POST',
+      new cdk.aws_apigateway.LambdaIntegration(postPsychicCreate, {
+        proxy: true,
+      })
+    );
+
+    // POST /psychic/predict
+    const predictResource = psychicResource.addResource('predict');
+    predictResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+    predictResource.addMethod(
+      'POST',
+      new cdk.aws_apigateway.LambdaIntegration(postPsychicPredict, {
+        proxy: true,
+      })
+    );
+
+    // POST /psychic/reveal
+    const revealResource = psychicResource.addResource('reveal');
+    revealResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+    revealResource.addMethod(
+      'POST',
+      new cdk.aws_apigateway.LambdaIntegration(postPsychicReveal, {
+        proxy: true,
+      })
+    );
+
+    // GET /psychic (list)
+    psychicResource.addMethod(
+      'GET',
+      new cdk.aws_apigateway.LambdaIntegration(getPsychicList, {
+        proxy: true,
+      })
+    );
+
+    // GET /psychic/{predictionId}
+    const predictionIdResource = psychicResource.addResource('{predictionId}');
+    predictionIdResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+    predictionIdResource.addMethod(
+      'GET',
+      new cdk.aws_apigateway.LambdaIntegration(getPsychic, {
+        proxy: true,
+      })
+    );
   }
 }

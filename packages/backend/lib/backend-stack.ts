@@ -486,7 +486,7 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@anthropic-ai/sdk'],
+          externalModules: ['@aws-sdk/client-dynamodb'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(60),

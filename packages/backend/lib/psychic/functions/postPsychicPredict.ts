@@ -17,10 +17,13 @@ import { corsHeadersFromOrigin, getRequestOrigin } from '../../utils/cors';
  *   "predictionSketchUrl": "https://..." // optional
  * }
  */
+const VERSION = '1.0.3'; // Increment this with each deploy
+
 export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
-  console.log('Submitting psychic prediction', event);
+  console.log(`[postPsychicPredict v${VERSION}] Starting request`);
+  console.log('Event:', JSON.stringify(event, null, 2));
 
   const origin = getRequestOrigin(event.headers as Record<string, string>);
 
@@ -76,13 +79,20 @@ export const handler = async (
     }
 
     // Compare the prediction with the pictures
+    console.log('[postPsychicPredict] Creating PredictionComparer...');
     const comparer = new PredictionComparer();
-    const { matchedPictureId, confidenceScore } = await comparer.comparePrediction(
+
+    console.log('[postPsychicPredict] Calling comparePrediction...');
+    const comparisonResult = await comparer.comparePrediction(
       request.predictionText,
       request.predictionSketchUrl,
       prediction.picture1,
       prediction.picture2
     );
+
+    console.log('[postPsychicPredict] Comparison result:', JSON.stringify(comparisonResult, null, 2));
+
+    const { matchedPictureId, confidenceScore, reasoning, picture1Analysis, picture2Analysis } = comparisonResult;
 
     // Determine which team the matched picture corresponds to
     let matchedTeam: string | undefined;
@@ -95,13 +105,25 @@ export const handler = async (
     }
 
     // Update the prediction in the database
+    console.log('[postPsychicPredict] Updating prediction in database...');
+    console.log('[postPsychicPredict] Matched team:', matchedTeam);
+    console.log('[postPsychicPredict] Confidence:', confidenceScore);
+    console.log('[postPsychicPredict] Reasoning:', reasoning);
+    console.log('[postPsychicPredict] Picture1Analysis:', picture1Analysis);
+    console.log('[postPsychicPredict] Picture2Analysis:', picture2Analysis);
+
     await store.updatePredictionGuess(
       request.predictionId,
       request.predictionText,
       request.predictionSketchUrl,
       matchedTeam,
-      confidenceScore
+      confidenceScore,
+      reasoning,
+      picture1Analysis,
+      picture2Analysis
     );
+
+    console.log('[postPsychicPredict] Database update complete');
 
     // Get the updated prediction
     const updatedPrediction = await store.getPrediction(request.predictionId);
@@ -109,6 +131,8 @@ export const handler = async (
     const response: PredictionResponse = {
       prediction: updatedPrediction!,
     };
+
+    console.log('[postPsychicPredict] Sending response:', JSON.stringify(response, null, 2));
 
     return {
       statusCode: 200,

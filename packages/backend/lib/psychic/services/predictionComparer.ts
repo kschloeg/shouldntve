@@ -10,8 +10,10 @@ import { PsychicPicture } from '../types/psychic';
  */
 export class PredictionComparer {
   private anthropic: Anthropic;
+  private static readonly VERSION = '1.0.3'; // Increment this with each change
 
   constructor(apiKey?: string) {
+    console.log(`[PredictionComparer v${PredictionComparer.VERSION}] Initializing`);
     const key = apiKey || process.env.ANTHROPIC_API_KEY || '';
     if (!key) {
       throw new Error('ANTHROPIC_API_KEY is required for PredictionComparer');
@@ -46,29 +48,64 @@ export class PredictionComparer {
     predictionSketchUrl: string | undefined,
     picture1: PsychicPicture,
     picture2: PsychicPicture
-  ): Promise<{ matchedPictureId: string | null; confidenceScore: number }> {
+  ): Promise<{
+    matchedPictureId: string | null;
+    confidenceScore: number;
+    reasoning?: string;
+    picture1Analysis?: string;
+    picture2Analysis?: string;
+  }> {
+    console.log(`[PredictionComparer v${PredictionComparer.VERSION}] Starting comparison`);
+    console.log(`Prediction text: "${predictionText}"`);
+    console.log(`Picture 1: ${picture1.id} - ${picture1.description}`);
+    console.log(`Picture 2: ${picture2.id} - ${picture2.description}`);
+
     if (!predictionText && !predictionSketchUrl) {
+      console.log('[PredictionComparer] No prediction text or sketch provided');
       return { matchedPictureId: null, confidenceScore: 0 };
     }
 
     // Build the prompt for Claude
-    const systemPrompt = `You are an expert at comparing descriptions and sketches with photographs to determine if they match significantly.
+    const systemPrompt = `You are an expert at comparing psychic predictions with photographs to determine if they match significantly.
 
 Your task is to analyze a psychic prediction (which may include text description and/or a sketch) and determine which of two provided pictures it matches best, if any.
 
-Rules:
-1. A "significant match" means the prediction describes key elements that are clearly present in one picture but not the other
-2. Vague or generic descriptions (e.g., "colorful", "outdoor scene") do NOT count as significant matches
-3. Specific details matter: colors, objects, compositions, subjects, settings, mood
-4. If the prediction could apply equally to both pictures, return NO_MATCH
-5. If the prediction clearly describes one picture significantly better than the other, return that picture's ID
-6. Provide a confidence score from 0-100 indicating how confident you are in the match
+IMPORTANT - Matching Criteria:
+1. SALIENT FEATURES are the most visually striking and memorable aspects of an image:
+   - Dominant colors that stand out (e.g., "bright orange" in a dark scene)
+   - High contrast elements (e.g., "black and orange")
+   - Unusual or distinctive objects
+   - Strong compositional elements
+   - Memorable subjects or focal points
+
+2. A "significant match" means the prediction describes SALIENT features that are:
+   - Clearly present and prominent in one picture
+   - NOT present OR less prominent in the other picture
+   - Specific enough to distinguish between the two images
+
+3. COLOR DESCRIPTIONS count as significant matches when:
+   - They describe dominant or striking colors that are visually salient
+   - They describe color combinations or contrasts (e.g., "orange and black")
+   - One picture has these colors prominently, the other does not
+   - Example: "bright orange" DOES match a picture with prominent orange lighting/objects
+
+4. REJECT as too vague only if:
+   - The description is extremely generic (e.g., just "colorful" or "nice")
+   - Both pictures equally match the description
+   - No distinguishing details are provided
+
+5. Provide confidence score 0-100 based on:
+   - How well the prediction matches salient features
+   - How distinctive the match is between the two pictures
+   - Higher confidence for specific salient features that clearly distinguish
 
 Respond in JSON format:
 {
   "matchedPictureId": "picture1" | "picture2" | null,
   "confidenceScore": number (0-100),
-  "reasoning": "brief explanation"
+  "reasoning": "Explain WHY this matches or doesn't match, focusing on salient features",
+  "picture1Analysis": "Brief analysis of picture 1's salient features",
+  "picture2Analysis": "Brief analysis of picture 2's salient features"
 }`;
 
     // Prepare content blocks
@@ -84,11 +121,13 @@ Respond in JSON format:
     userMessage += `Picture 2 ID: picture2\nPicture 2 description: ${picture2.description || 'No description'}\n\n`;
 
     try {
+      console.log('[PredictionComparer] Fetching images...');
       // Fetch images
       const [image1Base64, image2Base64] = await Promise.all([
         this.fetchImageAsBase64(picture1.thumbnailUrl || picture1.url),
         this.fetchImageAsBase64(picture2.thumbnailUrl || picture2.url),
       ]);
+      console.log('[PredictionComparer] Images fetched successfully');
 
       // Build message with images
       const messageContent: any[] = [
@@ -145,8 +184,9 @@ Respond in JSON format:
       });
 
       // Call Claude API
+      console.log('[PredictionComparer] Calling Claude API with model: claude-sonnet-4-5-20250929');
       const response = await this.anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5-20250929',
         max_tokens: 1024,
         system: systemPrompt,
         messages: [
@@ -156,19 +196,29 @@ Respond in JSON format:
           },
         ],
       });
+      console.log('[PredictionComparer] Claude API call successful');
 
       // Parse response
       const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
-      console.log('Claude response:', responseText);
+      console.log('[PredictionComparer] Claude response:', responseText);
 
       // Extract JSON from response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error('Failed to extract JSON from Claude response');
-        return { matchedPictureId: null, confidenceScore: 0 };
+        console.error('[PredictionComparer] ERROR: Failed to extract JSON from Claude response');
+        console.error('[PredictionComparer] Response was:', responseText);
+        return {
+          matchedPictureId: null,
+          confidenceScore: 0,
+          reasoning: 'Error: Could not parse Claude response',
+          picture1Analysis: 'Error parsing response',
+          picture2Analysis: 'Error parsing response'
+        };
       }
 
+      console.log('[PredictionComparer] Parsing JSON:', jsonMatch[0]);
       const result = JSON.parse(jsonMatch[0]);
+      console.log('[PredictionComparer] Parsed result:', JSON.stringify(result, null, 2));
 
       // Map picture1/picture2 to actual IDs
       let matchedPictureId: string | null = null;
@@ -178,13 +228,28 @@ Respond in JSON format:
         matchedPictureId = picture2.id;
       }
 
-      return {
+      const finalResult = {
         matchedPictureId,
         confidenceScore: result.confidenceScore || 0,
+        reasoning: result.reasoning,
+        picture1Analysis: result.picture1Analysis,
+        picture2Analysis: result.picture2Analysis,
       };
+
+      console.log('[PredictionComparer] Final result:', JSON.stringify(finalResult, null, 2));
+      return finalResult;
     } catch (error) {
-      console.error('Error comparing prediction with Claude:', error);
-      return { matchedPictureId: null, confidenceScore: 0 };
+      console.error('[PredictionComparer] CRITICAL ERROR:', error);
+      console.error('[PredictionComparer] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+
+      // Return error information in the response so we can see what went wrong
+      return {
+        matchedPictureId: null,
+        confidenceScore: 0,
+        reasoning: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        picture1Analysis: 'Error occurred during comparison',
+        picture2Analysis: 'Error occurred during comparison'
+      };
     }
   }
 }

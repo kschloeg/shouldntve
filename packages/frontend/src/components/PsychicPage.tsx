@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -13,6 +14,7 @@ import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Layout from './Layout';
 import { useSnackbar } from './snackbarContext';
 
@@ -39,6 +41,9 @@ interface PsychicPrediction {
   predictionSketchUrl?: string;
   matchedTeam?: string;
   confidenceScore?: number;
+  reasoning?: string;
+  picture1Analysis?: string;
+  picture2Analysis?: string;
   winningTeam?: string;
   revealedPictureId?: string;
 }
@@ -46,6 +51,8 @@ interface PsychicPrediction {
 const steps = ['Create Prediction', 'Make Prediction', 'Reveal Result'];
 
 export default function PsychicPage() {
+  const { predictionId } = useParams<{ predictionId?: string }>();
+  const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [team1, setTeam1] = useState('');
   const [team2, setTeam2] = useState('');
@@ -54,6 +61,49 @@ export default function PsychicPage() {
   const [winningTeam, setWinningTeam] = useState('');
   const [loading, setLoading] = useState(false);
   const showSnackbar = useSnackbar();
+
+  // Load prediction if predictionId is in URL
+  useEffect(() => {
+    if (predictionId) {
+      loadPrediction(predictionId);
+    }
+  }, [predictionId]);
+
+  const loadPrediction = async (id: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/psychic/${id}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to load prediction');
+      }
+
+      const data = await response.json();
+      setPrediction(data.prediction);
+
+      // Set the appropriate step based on prediction status
+      if (data.prediction.status === 'created') {
+        setActiveStep(1);
+      } else if (data.prediction.status === 'prediction_made' || data.prediction.status === 'revealed') {
+        setActiveStep(2);
+        setPredictionText(data.prediction.predictionText || '');
+        if (data.prediction.status === 'revealed') {
+          setWinningTeam(data.prediction.winningTeam || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading prediction:', error);
+      showSnackbar?.('Failed to load prediction', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Step 1: Create a new prediction
   const handleCreatePrediction = async () => {
@@ -83,6 +133,10 @@ export default function PsychicPage() {
       const data = await response.json();
       setPrediction(data.prediction);
       setActiveStep(1);
+
+      // Navigate to the prediction-specific URL
+      navigate(`/psychic/${data.prediction.id}`);
+
       showSnackbar?.(
         'Prediction created! Now describe the picture you will be shown.',
         'success'
@@ -199,6 +253,14 @@ export default function PsychicPage() {
     setPrediction(null);
     setPredictionText('');
     setWinningTeam('');
+    navigate('/psychic');
+  };
+
+  const copyPredictionUrl = () => {
+    if (!prediction) return;
+    const url = `${window.location.origin}/psychic/${prediction.id}`;
+    navigator.clipboard.writeText(url);
+    showSnackbar?.('URL copied to clipboard!', 'success');
   };
 
   const getRevealedPicture = () => {
@@ -278,11 +340,21 @@ export default function PsychicPage() {
         {/* Step 2: Make Prediction */}
         {activeStep === 1 && prediction && (
           <Box>
-            <Alert severity="info" sx={{ mb: 3 }}>
-              Without looking at the pictures below, describe the picture you
-              will be shown after the event. Be as specific as possible about
-              colors, objects, composition, and mood.
-            </Alert>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+              <Alert severity="info" sx={{ flexGrow: 1 }}>
+                Without looking at the pictures below, describe the picture you
+                will be shown after the event. Be as specific as possible about
+                colors, objects, composition, and mood.
+              </Alert>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ContentCopyIcon />}
+                onClick={copyPredictionUrl}
+              >
+                Copy URL
+              </Button>
+            </Box>
 
             <Card sx={{ mb: 3 }}>
               <CardContent>
@@ -382,19 +454,80 @@ export default function PsychicPage() {
         {/* Step 3: Reveal */}
         {activeStep === 2 && prediction && (
           <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Prediction: {prediction.id}
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ContentCopyIcon />}
+                onClick={copyPredictionUrl}
+              >
+                Copy URL
+              </Button>
+            </Box>
             {prediction.matchedTeam && (
-              <Alert severity="success" sx={{ mb: 3 }}>
-                Your prediction matched:{' '}
-                <strong>{prediction.matchedTeam}</strong> (Confidence:{' '}
-                {prediction.confidenceScore}%)
-              </Alert>
+              <Box sx={{ mb: 3 }}>
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  Your prediction matched:{' '}
+                  <strong>{prediction.matchedTeam}</strong> (Confidence:{' '}
+                  {prediction.confidenceScore}%)
+                </Alert>
+                {prediction.reasoning && (
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        <strong>Why it matched:</strong>
+                      </Typography>
+                      <Typography variant="body2" sx={{ mb: 2 }}>
+                        {prediction.reasoning}
+                      </Typography>
+                      {prediction.picture1Analysis && (
+                        <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                          <strong>Picture 1:</strong> {prediction.picture1Analysis}
+                        </Typography>
+                      )}
+                      {prediction.picture2Analysis && (
+                        <Typography variant="caption" display="block">
+                          <strong>Picture 2:</strong> {prediction.picture2Analysis}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </Box>
             )}
 
             {!prediction.matchedTeam && (
-              <Alert severity="info" sx={{ mb: 3 }}>
-                No significant match was found between your prediction and
-                either picture.
-              </Alert>
+              <Box sx={{ mb: 3 }}>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  No significant match was found between your prediction and
+                  either picture.
+                </Alert>
+                {prediction.reasoning && (
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        <strong>Why it didn't match:</strong>
+                      </Typography>
+                      <Typography variant="body2" sx={{ mb: 2 }}>
+                        {prediction.reasoning}
+                      </Typography>
+                      {prediction.picture1Analysis && (
+                        <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                          <strong>Picture 1:</strong> {prediction.picture1Analysis}
+                        </Typography>
+                      )}
+                      {prediction.picture2Analysis && (
+                        <Typography variant="caption" display="block">
+                          <strong>Picture 2:</strong> {prediction.picture2Analysis}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </Box>
             )}
 
             {prediction.status !== 'revealed' ? (

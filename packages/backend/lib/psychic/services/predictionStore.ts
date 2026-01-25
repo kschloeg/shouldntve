@@ -87,7 +87,10 @@ export class PredictionStore {
     predictionText: string | undefined,
     predictionSketchUrl: string | undefined,
     matchedTeam: string | undefined,
-    confidenceScore: number
+    confidenceScore: number,
+    reasoning?: string,
+    picture1Analysis?: string,
+    picture2Analysis?: string
   ): Promise<void> {
     const now = new Date().toISOString();
 
@@ -101,6 +104,7 @@ export class PredictionStore {
         UpdateExpression:
           'SET #status = :status, predictionText = :predictionText, predictionSketchUrl = :predictionSketchUrl, ' +
           'predictionTimestamp = :predictionTimestamp, matchedTeam = :matchedTeam, confidenceScore = :confidenceScore, ' +
+          'reasoning = :reasoning, picture1Analysis = :picture1Analysis, picture2Analysis = :picture2Analysis, ' +
           'updatedAt = :updatedAt',
         ExpressionAttributeNames: {
           '#status': 'status',
@@ -112,6 +116,9 @@ export class PredictionStore {
           ':predictionTimestamp': now,
           ':matchedTeam': matchedTeam || null,
           ':confidenceScore': confidenceScore,
+          ':reasoning': reasoning || null,
+          ':picture1Analysis': picture1Analysis || null,
+          ':picture2Analysis': picture2Analysis || null,
           ':updatedAt': now,
         },
       })

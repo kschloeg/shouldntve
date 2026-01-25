@@ -13,6 +13,7 @@ function App() {
         <Route path="/" element={<MainPage />} />
         <Route path="/polymarket" element={<PolymarketPage />} />
         <Route path="/psychic" element={<PsychicPage />} />
+        <Route path="/psychic/:predictionId" element={<PsychicPage />} />
       </Routes>
     </SnackbarProvider>
   );

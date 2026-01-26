@@ -16,7 +16,9 @@ This feature automatically checks for Minnesota sports team scores each morning 
 ## How It Works
 
 1. **Scheduled Trigger**: An EventBridge rule triggers the Lambda function daily at 4:00 AM CST (10:00 AM UTC)
-2. **Score Fetching**: The function queries ESPN's public API for scores from the previous day
+2. **Score Fetching**: The function queries ESPN's public API for:
+   - Completed games from the previous day
+   - Upcoming games in the next 24 hours
 3. **Filtering**: Only games involving Minnesota teams are included
 4. **Email Notification**: Results are sent via AWS SES to the configured email address
 
@@ -30,10 +32,11 @@ EventBridge (Cron) → Lambda Function → ESPN API
 
 ### Components
 
-- **Lambda Function**: `lib/functions/dailySportsScores.ts`
-- **Sports API Client**: `lib/services/sportsApiClient.ts`
-- **Email Service**: `lib/services/emailService.ts`
-- **Type Definitions**: `lib/types/sports.ts`
+- **Lambda Function**: `lib/sports/functions/dailySportsScores.ts`
+- **Manual Trigger**: `lib/sports/functions/postSportsScoresTrigger.ts`
+- **Sports API Client**: `lib/sports/services/sportsApiClient.ts`
+- **Email Service**: `lib/sports/services/emailService.ts`
+- **Type Definitions**: `lib/sports/types/sports.ts`
 
 ## Configuration
 
@@ -43,15 +46,17 @@ Edit `packages/backend/.env`:
 
 ```bash
 # Email address to receive daily sports scores
-SPORTS_RECIPIENT_EMAIL=kschloeg@gmail.com
+RECIPIENT_EMAIL=kschloeg@gmail.com
 
 # SES verified sender email (already configured)
 SES_FROM_ADDRESS=kschloeg@gmail.com
 ```
 
+Note: The CDK stack maps `SPORTS_RECIPIENT_EMAIL` to `RECIPIENT_EMAIL` for the Lambda function.
+
 ### Adding More Teams
 
-To add additional teams to track, edit `lib/types/sports.ts`:
+To add additional teams to track, edit `lib/sports/types/sports.ts`:
 
 ```typescript
 export const MINNESOTA_TEAMS: Team[] = [
@@ -98,6 +103,17 @@ Or trigger it via the AWS Console:
 1. Go to Lambda → Functions → BackendStack-DailySportsScores
 2. Click "Test"
 3. Use any test event (the function ignores the event payload)
+
+### API Trigger
+
+You can also trigger the sports scores check via the API (requires authentication):
+
+```bash
+curl -X POST https://your-api-url/sports/trigger \
+  -H "Cookie: auth_token=your_jwt_token"
+```
+
+This endpoint invokes the Lambda function asynchronously and returns immediately.
 
 ## Schedule Modification
 
@@ -153,12 +169,18 @@ Or in AWS Console:
 
 The email includes:
 - **Header**: Date and number of games
-- **Game Cards**: Each game shows:
+- **Yesterday's Results**: Each completed game shows:
   - League badge (NFL, NBA, etc.)
-  - Away team @ Home team
+  - Away team @ Home team with win-loss records
   - Final scores
   - Color coding: Winners in green, losers in red
+- **Upcoming Games (Next 24 Hours)**: Scheduled games show:
+  - League badge
+  - Away team @ Home team with records
+  - Game time in Central Time
 - **Empty State**: If no games were played, you'll get a brief notification
+
+The email subject line indicates the count of results and upcoming games (e.g., "Minnesota Sports - 2 Results, 1 Upcoming").
 
 ## Cost Considerations
 

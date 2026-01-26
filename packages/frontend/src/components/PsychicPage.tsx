@@ -46,8 +46,9 @@ interface PsychicPrediction {
   status: 'created' | 'prediction_made' | 'revealed' | 'expired';
   team1: string;
   team2: string;
-  picture1: PsychicPicture;
-  picture2: PsychicPicture;
+  picture1?: PsychicPicture; // Only present when showing pictures
+  picture2?: PsychicPicture; // Only present when showing pictures
+  revealedPicture?: PsychicPicture; // Only present after reveal
   team1PictureId?: string;
   predictionText?: string;
   predictionSketchUrl?: string;
@@ -74,6 +75,8 @@ export default function PsychicPage() {
   const [winningTeam, setWinningTeam] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [showPictures, setShowPictures] = useState(false);
+  const [loadingPictures, setLoadingPictures] = useState(false);
   const showSnackbar = useSnackbar();
 
   const loadPredictions = useCallback(async () => {
@@ -293,6 +296,7 @@ export default function PsychicPage() {
     setPrediction(null);
     setPredictionText('');
     setWinningTeam('');
+    setShowPictures(false);
     navigate('/psychic');
     loadPredictions();
   };
@@ -329,11 +333,37 @@ export default function PsychicPage() {
     showSnackbar?.('URL copied to clipboard!', 'success');
   };
 
+  const handleShowPictures = async () => {
+    if (!prediction) return;
+
+    setLoadingPictures(true);
+    try {
+      const response = await apiFetch(
+        `${import.meta.env.VITE_API_URL}/psychic/${prediction.id}?includePictures=true`,
+        {
+          method: 'GET',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to load pictures');
+      }
+
+      const data = await response.json();
+      setPrediction(data.prediction);
+      setShowPictures(true);
+      showSnackbar?.('Pictures loaded', 'info');
+    } catch (error) {
+      console.error('Error loading pictures:', error);
+      showSnackbar?.('Failed to load pictures', 'error');
+    } finally {
+      setLoadingPictures(false);
+    }
+  };
+
   const getRevealedPicture = () => {
-    if (!prediction || !prediction.revealedPictureId) return null;
-    return prediction.picture1.id === prediction.revealedPictureId
-      ? prediction.picture1
-      : prediction.picture2;
+    if (!prediction || !prediction.revealedPicture) return null;
+    return prediction.revealedPicture;
   };
 
   return (
@@ -502,9 +532,9 @@ export default function PsychicPage() {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
               <Alert severity="info" sx={{ flexGrow: 1 }}>
-                Without looking at the pictures below, describe the picture you
-                will be shown after the event. Be as specific as possible about
-                colors, objects, composition, and mood.
+                Describe the picture you will be shown after the event. Be as
+                specific as possible about colors, objects, composition, and mood.
+                Do not look at the pictures until after you submit your prediction!
               </Alert>
               <Button
                 variant="outlined"
@@ -546,68 +576,92 @@ export default function PsychicPage() {
               </CardContent>
             </Card>
 
-            <Typography
-              variant="caption"
-              sx={{ display: 'block', mb: 2, color: 'text.secondary' }}
-            >
-              The pictures below are for reference only. Do not look at them
-              before making your prediction.
-            </Typography>
+            {!showPictures ? (
+              <Box sx={{ mt: 3 }}>
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  Pictures are hidden to avoid influencing your prediction. Only
+                  reveal them if you need to see what options are available (this
+                  may reduce the validity of the psychic test).
+                </Alert>
+                <Button
+                  variant="outlined"
+                  onClick={handleShowPictures}
+                  disabled={loadingPictures}
+                  startIcon={loadingPictures ? <CircularProgress size={20} /> : <VisibilityIcon />}
+                >
+                  {loadingPictures ? 'Loading...' : 'Show Pictures (Optional)'}
+                </Button>
+              </Box>
+            ) : prediction.picture1 && prediction.picture2 ? (
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{ display: 'block', mb: 2, color: 'text.secondary' }}
+                >
+                  The pictures below are for reference only. Seeing them may
+                  influence your prediction.
+                </Typography>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardMedia
-                    component="img"
-                    height="300"
-                    image={
-                      prediction.picture1.thumbnailUrl ||
-                      prediction.picture1.url
-                    }
-                    alt="Picture 1"
-                  />
-                  <CardContent>
-                    <Typography variant="body2" color="text.secondary">
-                      {prediction.picture1.description}
-                    </Typography>
-                    {prediction.picture1.photographer && (
-                      <Typography
-                        variant="caption"
-                        sx={{ display: 'block', mt: 1 }}
-                      >
-                        Photo by {prediction.picture1.photographer}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardMedia
-                    component="img"
-                    height="300"
-                    image={
-                      prediction.picture2.thumbnailUrl ||
-                      prediction.picture2.url
-                    }
-                    alt="Picture 2"
-                  />
-                  <CardContent>
-                    <Typography variant="body2" color="text.secondary">
-                      {prediction.picture2.description}
-                    </Typography>
-                    {prediction.picture2.photographer && (
-                      <Typography
-                        variant="caption"
-                        sx={{ display: 'block', mt: 1 }}
-                      >
-                        Photo by {prediction.picture2.photographer}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Card>
+                      <CardMedia
+                        component="img"
+                        height="300"
+                        image={
+                          prediction.picture1.thumbnailUrl ||
+                          prediction.picture1.url
+                        }
+                        alt="Picture 1"
+                      />
+                      <CardContent>
+                        <Typography variant="body2" color="text.secondary">
+                          {prediction.picture1.description}
+                        </Typography>
+                        {prediction.picture1.photographer && (
+                          <Typography
+                            variant="caption"
+                            sx={{ display: 'block', mt: 1 }}
+                          >
+                            Photo by {prediction.picture1.photographer}
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Card>
+                      <CardMedia
+                        component="img"
+                        height="300"
+                        image={
+                          prediction.picture2.thumbnailUrl ||
+                          prediction.picture2.url
+                        }
+                        alt="Picture 2"
+                      />
+                      <CardContent>
+                        <Typography variant="body2" color="text.secondary">
+                          {prediction.picture2.description}
+                        </Typography>
+                        {prediction.picture2.photographer && (
+                          <Typography
+                            variant="caption"
+                            sx={{ display: 'block', mt: 1 }}
+                          >
+                            Photo by {prediction.picture2.photographer}
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              </Box>
+            ) : (
+              <Box sx={{ mt: 3 }}>
+                <CircularProgress />
+              </Box>
+            )}
           </Box>
         )}
 

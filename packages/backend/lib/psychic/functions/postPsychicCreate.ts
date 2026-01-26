@@ -67,8 +67,11 @@ export const handler = async (
       team1PictureId,
     });
 
+    // Remove picture data to prevent psychic from seeing pictures
+    const { picture1: _pic1, picture2: _pic2, ...predictionWithoutPictures } = prediction;
+
     const response: PredictionResponse = {
-      prediction,
+      prediction: predictionWithoutPictures as any,
     };
 
     return {

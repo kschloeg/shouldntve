@@ -79,8 +79,18 @@ export const handler = async (
     // Get the updated prediction
     const updatedPrediction = await store.getPrediction(request.predictionId);
 
+    // Only return the revealed picture, not both pictures
+    const revealedPicture = updatedPrediction!.revealedPictureId === updatedPrediction!.picture1.id
+      ? updatedPrediction!.picture1
+      : updatedPrediction!.picture2;
+
+    const { picture1, picture2, ...predictionWithoutBothPictures } = updatedPrediction!;
+
     const response: PredictionResponse = {
-      prediction: updatedPrediction!,
+      prediction: {
+        ...predictionWithoutBothPictures,
+        revealedPicture,
+      } as any,
     };
 
     return {

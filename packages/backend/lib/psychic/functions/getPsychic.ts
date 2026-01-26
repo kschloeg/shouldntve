@@ -37,17 +37,49 @@ export const handler = async (
       };
     }
 
-    // Before revealing, hide the team assignments
-    // Only show pictures and teams, not which picture goes with which team
+    // Check if caller wants to see pictures (optional, reduces test validity)
+    const includePictures = event.queryStringParameters?.includePictures === 'true';
+
+    // Before revealing, hide the pictures to prevent psychic from seeing them
     if (prediction.status === 'created' || prediction.status === 'prediction_made') {
-      // Don't expose team1PictureId until revealed
-      const safePrediction = {
-        ...prediction,
-        team1PictureId: undefined, // Hide the assignment
-      };
+      if (includePictures) {
+        // Include pictures if explicitly requested
+        const { team1PictureId, ...safePrediction } = prediction;
+        const response: PredictionResponse = {
+          prediction: safePrediction as any,
+        };
+        return {
+          statusCode: 200,
+          headers: corsHeadersFromOrigin(origin, 'application/json'),
+          body: JSON.stringify(response),
+        };
+      } else {
+        // By default, hide pictures
+        const { picture1, picture2, team1PictureId, ...safePrediction } = prediction;
+        const response: PredictionResponse = {
+          prediction: safePrediction as any,
+        };
+        return {
+          statusCode: 200,
+          headers: corsHeadersFromOrigin(origin, 'application/json'),
+          body: JSON.stringify(response),
+        };
+      }
+    }
+
+    // After reveal, only return the revealed picture
+    if (prediction.status === 'revealed') {
+      const revealedPicture = prediction.revealedPictureId === prediction.picture1.id
+        ? prediction.picture1
+        : prediction.picture2;
+
+      const { picture1, picture2, ...predictionWithoutBothPictures } = prediction;
 
       const response: PredictionResponse = {
-        prediction: safePrediction as any,
+        prediction: {
+          ...predictionWithoutBothPictures,
+          revealedPicture,
+        } as any,
       };
 
       return {
@@ -57,6 +89,7 @@ export const handler = async (
       };
     }
 
+    // Fallback for other statuses (shouldn't happen)
     const response: PredictionResponse = {
       prediction,
     };

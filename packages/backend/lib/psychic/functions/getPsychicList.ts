@@ -23,9 +23,25 @@ export const handler = async (
     const store = new PredictionStore(process.env.TABLE_NAME || '');
     const predictions = await store.listPredictions(limit);
 
+    // Remove picture data from all predictions to prevent leaking
+    const safePredictions = predictions.map(pred => {
+      if (pred.status === 'revealed' && pred.revealedPictureId) {
+        // For revealed predictions, only include the revealed picture
+        const revealedPicture = pred.revealedPictureId === pred.picture1.id
+          ? pred.picture1
+          : pred.picture2;
+        const { picture1, picture2, ...rest } = pred;
+        return { ...rest, revealedPicture } as any;
+      } else {
+        // For non-revealed predictions, remove all picture data
+        const { picture1, picture2, team1PictureId, ...rest } = pred;
+        return rest as any;
+      }
+    });
+
     const response: ListPredictionsResponse = {
-      predictions,
-      count: predictions.length,
+      predictions: safePredictions,
+      count: safePredictions.length,
     };
 
     return {

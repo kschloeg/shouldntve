@@ -128,8 +128,11 @@ export const handler = async (
     // Get the updated prediction
     const updatedPrediction = await store.getPrediction(request.predictionId);
 
+    // Remove picture data to prevent psychic from seeing pictures
+    const { picture1, picture2, ...predictionWithoutPictures } = updatedPrediction!;
+
     const response: PredictionResponse = {
-      prediction: updatedPrediction!,
+      prediction: predictionWithoutPictures as any,
     };
 
     console.log('[postPsychicPredict] Sending response:', JSON.stringify(response, null, 2));

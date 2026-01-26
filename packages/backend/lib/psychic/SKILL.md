@@ -14,8 +14,8 @@ This system tests psychic prediction abilities using a controlled double-blind p
    - Pictures are validated to ensure they differ significantly in:
      - Color (at least 30% difference in average color)
      - Subject matter (less than 50% word overlap in descriptions)
-   - The system randomly assigns one picture to each team
-   - The assignment is stored but hidden from the psychic
+   - Picture 1 is assigned to team 1, picture 2 is assigned to team 2
+   - The assignment is stored but hidden from the psychic (pictures are not returned in the API response)
 
 2. **Prediction Phase** (Submit Prediction):
    - The psychic (without seeing the pictures) describes the picture they will be shown
@@ -36,15 +36,16 @@ This system tests psychic prediction abilities using a controlled double-blind p
 ### Key Design Principles
 
 - **Double-blind**: The psychic doesn't know which picture corresponds to which team until after the event
-- **Random assignment**: Pictures are randomly assigned to teams to prevent bias
+- **Random pictures**: Pictures are randomly selected from Pexels to prevent prediction
 - **Dissimilarity enforcement**: Pictures must be significantly different to make matching meaningful
-- **Objective comparison**: Claude AI provides unbiased comparison between prediction and pictures
+- **Objective comparison**: Claude AI (Sonnet 4.5) provides unbiased comparison between prediction and pictures
 
 ## File Structure
 
 ```
 packages/backend/lib/psychic/
 ├── SKILL.md                          # This file - documentation for LLM sessions
+├── README.md                         # Full documentation
 ├── types/
 │   └── psychic.ts                    # TypeScript interfaces and types
 ├── services/
@@ -56,7 +57,9 @@ packages/backend/lib/psychic/
     ├── postPsychicPredict.ts         # POST /psychic/predict - submit psychic guess
     ├── postPsychicReveal.ts          # POST /psychic/reveal - reveal winning picture
     ├── getPsychic.ts                 # GET /psychic/{id} - get specific prediction
-    └── getPsychicList.ts             # GET /psychic - list predictions
+    ├── getPsychicList.ts             # GET /psychic - list predictions
+    ├── deletePsychic.ts              # DELETE /psychic/{id} - delete prediction
+    └── postPsychicTest.ts            # POST /psychic/{id}/test - debug comparison
 ```
 
 ## API Endpoints
@@ -79,25 +82,15 @@ Creates a new prediction session.
   "prediction": {
     "id": "pred_1234567890_abc123",
     "createdAt": "2025-01-24T12:00:00Z",
+    "updatedAt": "2025-01-24T12:00:00Z",
     "status": "created",
     "team1": "Minnesota Vikings",
-    "team2": "Green Bay Packers",
-    "picture1": {
-      "id": "12345",
-      "url": "https://...",
-      "description": "Mountain landscape at sunset",
-      "avgColor": "#FF5733"
-    },
-    "picture2": {
-      "id": "67890",
-      "url": "https://...",
-      "description": "Ocean waves on beach",
-      "avgColor": "#3498DB"
-    },
-    "team1PictureId": "12345"  // Hidden from psychic until reveal
+    "team2": "Green Bay Packers"
   }
 }
 ```
+
+Note: Pictures are NOT included in the response to prevent the psychic from seeing them.
 
 ### POST /psychic/predict
 
@@ -120,11 +113,15 @@ Submits the psychic's prediction and gets comparison result.
     "status": "prediction_made",
     "matchedTeam": "Minnesota Vikings",  // or null if no match
     "confidenceScore": 85,
-    "predictionText": "I see mountains with...",
-    // ... rest of prediction data
+    "reasoning": "The prediction matches picture 1 because...",
+    "picture1Analysis": "Picture 1 shows a mountain landscape with orange sunset...",
+    "picture2Analysis": "Picture 2 shows ocean waves on a beach...",
+    "predictionText": "I see mountains with..."
   }
 }
 ```
+
+Note: Pictures are still hidden at this stage.
 
 The `matchedTeam` field will be:
 - Team name (e.g., "Minnesota Vikings") if there's a significant match
@@ -150,10 +147,20 @@ Reveals the picture for the winning team after the event.
     "status": "revealed",
     "winningTeam": "Minnesota Vikings",
     "revealedPictureId": "12345",
-    // ... includes full prediction history
+    "revealedPicture": {
+      "id": "12345",
+      "url": "https://...",
+      "thumbnailUrl": "https://...",
+      "description": "Mountain landscape at sunset",
+      "photographer": "John Doe",
+      "photographerUrl": "https://...",
+      "avgColor": "#FF5733"
+    }
   }
 }
 ```
+
+Note: Only the revealed picture is returned, not both.
 
 ### GET /psychic/{predictionId}
 
@@ -162,6 +169,14 @@ Retrieves a specific prediction. Note: The `team1PictureId` assignment is hidden
 ### GET /psychic?limit=50
 
 Lists recent predictions.
+
+### DELETE /psychic/{predictionId}
+
+Deletes a prediction.
+
+### POST /psychic/{predictionId}/test
+
+Debug endpoint for testing the AI comparison on an existing prediction.
 
 ## LLM Instructions for Using This System
 
@@ -238,7 +253,13 @@ const result = await comparer.comparePrediction(
 );
 
 console.log(result);
-// { matchedPictureId: "12345", confidenceScore: 85 }
+// {
+//   matchedPictureId: "12345",
+//   confidenceScore: 85,
+//   reasoning: "The prediction matches...",
+//   picture1Analysis: "Picture 1 shows...",
+//   picture2Analysis: "Picture 2 shows..."
+// }
 ```
 
 ## Future Enhancements
@@ -252,6 +273,7 @@ console.log(result);
 ## Important Notes
 
 - Pictures are fetched from Pexels which requires attribution
-- The Anthropic API is used for sophisticated image comparison
+- The Anthropic API (Claude Sonnet 4.5) is used for sophisticated image comparison
 - All predictions are stored permanently for future analysis
 - The system is designed for single-person testing (psychic and bettor are the same person)
+- Pictures are never returned in API responses until reveal to maintain the double-blind protocol

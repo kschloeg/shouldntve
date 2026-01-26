@@ -41,7 +41,9 @@ packages/backend/lib/psychic/
     ├── postPsychicPredict.ts         # POST /psychic/predict
     ├── postPsychicReveal.ts          # POST /psychic/reveal
     ├── getPsychic.ts                 # GET /psychic/{id}
-    └── getPsychicList.ts             # GET /psychic
+    ├── getPsychicList.ts             # GET /psychic
+    ├── deletePsychic.ts              # DELETE /psychic/{id}
+    └── postPsychicTest.ts            # POST /psychic/{id}/test (debugging)
 ```
 
 ## Frontend
@@ -77,11 +79,13 @@ Creates a new prediction session with two teams.
     "status": "created",
     "team1": "Minnesota Vikings",
     "team2": "Green Bay Packers",
-    "picture1": { ... },
-    "picture2": { ... }
+    "createdAt": "2025-01-24T12:00:00Z",
+    "updatedAt": "2025-01-24T12:00:00Z"
   }
 }
 ```
+
+Note: Pictures are NOT returned in the create response to prevent the psychic from seeing them before making their prediction.
 
 ### POST /psychic/predict
 
@@ -102,11 +106,16 @@ Submits the psychic's prediction.
   "prediction": {
     "id": "pred_1234567890_abc123",
     "status": "prediction_made",
-    "matchedTeam": "Minnesota Vikings",  // or null
-    "confidenceScore": 85
+    "matchedTeam": "Minnesota Vikings",  // or null if no match
+    "confidenceScore": 85,
+    "reasoning": "The prediction matches picture 1 because...",
+    "picture1Analysis": "Analysis of picture 1's salient features",
+    "picture2Analysis": "Analysis of picture 2's salient features"
   }
 }
 ```
+
+Note: Pictures are still hidden from the response at this stage.
 
 ### POST /psychic/reveal
 
@@ -127,10 +136,21 @@ Reveals the picture for the winning team.
     "id": "pred_1234567890_abc123",
     "status": "revealed",
     "winningTeam": "Minnesota Vikings",
-    "revealedPictureId": "12345"
+    "revealedPictureId": "12345",
+    "revealedPicture": {
+      "id": "12345",
+      "url": "https://...",
+      "thumbnailUrl": "https://...",
+      "description": "Mountain landscape at sunset",
+      "photographer": "John Doe",
+      "photographerUrl": "https://...",
+      "avgColor": "#FF5733"
+    }
   }
 }
 ```
+
+Note: Only the revealed picture is returned, not both pictures.
 
 ### GET /psychic/{predictionId}
 
@@ -139,6 +159,14 @@ Retrieves a specific prediction. Note: team assignments are hidden until reveal.
 ### GET /psychic
 
 Lists recent predictions (up to 50).
+
+### DELETE /psychic/{predictionId}
+
+Deletes a prediction.
+
+### POST /psychic/{predictionId}/test
+
+Debug endpoint for testing the AI comparison on an existing prediction. Useful for debugging comparison logic.
 
 ## Environment Variables
 
@@ -165,7 +193,7 @@ FRONTEND_ORIGIN=https://shouldntve.com
 2. **Anthropic API Key**:
    - Sign up at https://console.anthropic.com/
    - Required for AI-powered prediction comparison
-   - Uses Claude 3.5 Sonnet for vision capabilities
+   - Uses Claude Sonnet 4.5 for vision capabilities
 
 ## Database Schema
 
@@ -190,6 +218,9 @@ The system uses a DynamoDB table `PsychicPredictionsTable` with the following st
 - `predictionSketchUrl`: Optional sketch URL
 - `matchedTeam`: Team that matched the prediction (if any)
 - `confidenceScore`: AI confidence score (0-100)
+- `reasoning`: AI explanation of why the prediction matched or didn't match
+- `picture1Analysis`: AI analysis of picture 1's salient features
+- `picture2Analysis`: AI analysis of picture 2's salient features
 - `winningTeam`: Team that won the event
 - `revealedPictureId`: Picture shown after reveal
 
@@ -321,7 +352,13 @@ const result = await comparer.comparePrediction(
 );
 
 console.log(result);
-// { matchedPictureId: "12345", confidenceScore: 85 }
+// {
+//   matchedPictureId: "12345",
+//   confidenceScore: 85,
+//   reasoning: "The prediction matches...",
+//   picture1Analysis: "Picture 1 shows...",
+//   picture2Analysis: "Picture 2 shows..."
+// }
 ```
 
 ## Future Enhancements

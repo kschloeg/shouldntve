@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../utils/apiClient';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -54,11 +55,8 @@ export default function PolymarketPage() {
       if (searchQuery) params.append('q', searchQuery);
       params.append('limit', '50');
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/polymarket/search?${params.toString()}`,
-        {
-          credentials: 'include',
-        }
+      const response = await apiFetch(
+        `${import.meta.env.VITE_API_URL}/polymarket/search?${params.toString()}`
       );
 
       if (!response.ok) {
@@ -159,12 +157,24 @@ export default function PolymarketPage() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Market</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>Outcomes & Odds</strong></TableCell>
-                  <TableCell><strong>End Date</strong></TableCell>
-                  <TableCell><strong>Volume</strong></TableCell>
-                  <TableCell><strong>Link</strong></TableCell>
+                  <TableCell>
+                    <strong>Market</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Status</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Outcomes & Odds</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>End Date</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Volume</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Link</strong>
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

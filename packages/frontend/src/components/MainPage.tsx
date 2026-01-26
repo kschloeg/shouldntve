@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { apiFetch } from '../utils/apiClient';
 import UsersTable from './UsersTable';
 import Box from '@mui/material/Box';
 // removed unused imports
@@ -33,9 +34,7 @@ export default function MainPage() {
   const syncUsers = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
-        credentials: 'include',
-      });
+      const res = await apiFetch(`${import.meta.env.VITE_API_URL}/users`);
       const body = await res.json();
       setUsers(body || []);
     } catch (e) {
@@ -71,9 +70,8 @@ export default function MainPage() {
       if (editFirstName) body.firstName = editFirstName;
       if (editLastName) body.lastName = editLastName;
       if (editPhone) body.phone = editPhone;
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
+      const res = await apiFetch(`${import.meta.env.VITE_API_URL}/users`, {
         method: 'PUT',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -96,16 +94,21 @@ export default function MainPage() {
   const triggerSportsScores = async () => {
     setTriggeringSports(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/sports/trigger`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const res = await apiFetch(
+        `${import.meta.env.VITE_API_URL}/sports/trigger`,
+        {
+          method: 'POST',
+        }
+      );
       if (!res.ok) {
         showSnackbar?.('Failed to trigger sports scores', 'error');
         setTriggeringSports(false);
         return;
       }
-      showSnackbar?.('Sports scores email triggered! Check your inbox.', 'success');
+      showSnackbar?.(
+        'Sports scores email triggered! Check your inbox.',
+        'success'
+      );
     } catch (e) {
       console.error('triggerSportsScores error', e);
       showSnackbar?.('Network error', 'error');
@@ -116,7 +119,14 @@ export default function MainPage() {
   return (
     <Layout>
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 2,
+          }}
+        >
           <Typography variant="h4">Users</Typography>
           <Button
             variant="contained"

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/apiClient';
 
 type AuthUser = { email?: string; sub?: string } | null;
 
@@ -10,10 +11,13 @@ export default function useAuth() {
     let mounted = true;
     (async () => {
       try {
-        const who = await fetch(`${import.meta.env.VITE_API_URL}/protected`, {
-          method: 'GET',
-          credentials: 'include',
-        });
+        const who = await apiFetch(
+          `${import.meta.env.VITE_API_URL}/protected`,
+          {
+            method: 'GET',
+            skipAuthRedirect: true,
+          }
+        );
         if (!mounted) return;
         if (who.ok) {
           const wj = await who.json();
@@ -30,13 +34,13 @@ export default function useAuth() {
   }, []);
 
   const requestOtp = async (body: { phone?: string; email?: string }) => {
-    const res = await fetch(
+    const res = await apiFetch(
       `${import.meta.env.VITE_API_URL}/auth/request-otp`,
       {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        skipAuthRedirect: true,
       }
     );
     return res;
@@ -47,12 +51,15 @@ export default function useAuth() {
     email?: string;
     code: string;
   }) => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/verify-otp`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const res = await apiFetch(
+      `${import.meta.env.VITE_API_URL}/auth/verify-otp`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        skipAuthRedirect: true,
+      }
+    );
 
     if (!res.ok) {
       setUser(null);
@@ -60,9 +67,9 @@ export default function useAuth() {
     }
 
     try {
-      const who = await fetch(`${import.meta.env.VITE_API_URL}/protected`, {
+      const who = await apiFetch(`${import.meta.env.VITE_API_URL}/protected`, {
         method: 'GET',
-        credentials: 'include',
+        skipAuthRedirect: true,
       });
       if (!who.ok) {
         setUser(null);
@@ -87,9 +94,8 @@ export default function useAuth() {
   const signOut = async () => {
     setUser(null);
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
+      await apiFetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
         method: 'POST',
-        credentials: 'include',
       });
     } catch (e) {
       console.error('signOut error', e);

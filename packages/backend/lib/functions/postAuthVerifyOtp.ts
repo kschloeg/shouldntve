@@ -302,12 +302,12 @@ export const handler = async (event: {
 
     const subject = isEmail ? identifier : identifier;
     const token = jwt.sign({ sub: subject }, cachedJwtSecret as string, {
-      expiresIn: '1h',
+      expiresIn: '4h',
     });
 
     // create Set-Cookie header for httpOnly cookie
     const originHeader = getRequestOrigin(event.headers);
-    const cookie = `auth_token=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=3600`;
+    const cookie = `auth_token=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=14400`;
 
     return {
       statusCode: 200,

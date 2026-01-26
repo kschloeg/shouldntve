@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { apiFetch } from '../utils/apiClient';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -78,11 +79,10 @@ export default function PsychicPage() {
   const loadPredictions = useCallback(async () => {
     setLoadingPredictions(true);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${import.meta.env.VITE_API_URL}/psychic?limit=50`,
         {
           method: 'GET',
-          credentials: 'include',
         }
       );
 
@@ -105,11 +105,10 @@ export default function PsychicPage() {
     const loadPrediction = async (id: string) => {
       setLoading(true);
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${import.meta.env.VITE_API_URL}/psychic/${id}`,
           {
             method: 'GET',
-            credentials: 'include',
           }
         );
 
@@ -158,11 +157,10 @@ export default function PsychicPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${import.meta.env.VITE_API_URL}/psychic/create`,
         {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -207,11 +205,10 @@ export default function PsychicPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${import.meta.env.VITE_API_URL}/psychic/predict`,
         {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -260,11 +257,10 @@ export default function PsychicPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${import.meta.env.VITE_API_URL}/psychic/reveal`,
         {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -307,11 +303,10 @@ export default function PsychicPage() {
     }
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${import.meta.env.VITE_API_URL}/psychic/${id}`,
         {
           method: 'DELETE',
-          credentials: 'include',
         }
       );
 

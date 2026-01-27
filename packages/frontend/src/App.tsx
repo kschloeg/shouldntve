@@ -5,17 +5,18 @@ import PolymarketPage from './components/PolymarketPage';
 import PsychicPage from './components/PsychicPage';
 import PsychicEditPage from './components/PsychicEditPage';
 import SnackbarProvider from './components/SnackbarProvider';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
     <SnackbarProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<MainPage />} />
-        <Route path="/polymarket" element={<PolymarketPage />} />
-        <Route path="/psychic" element={<PsychicPage />} />
-        <Route path="/psychic/:predictionId" element={<PsychicPage />} />
-        <Route path="/psychic/:predictionId/edit" element={<PsychicEditPage />} />
+        <Route path="/" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
+        <Route path="/polymarket" element={<ProtectedRoute><PolymarketPage /></ProtectedRoute>} />
+        <Route path="/psychic" element={<ProtectedRoute><PsychicPage /></ProtectedRoute>} />
+        <Route path="/psychic/:predictionId" element={<ProtectedRoute><PsychicPage /></ProtectedRoute>} />
+        <Route path="/psychic/:predictionId/edit" element={<ProtectedRoute><PsychicEditPage /></ProtectedRoute>} />
       </Routes>
     </SnackbarProvider>
   );

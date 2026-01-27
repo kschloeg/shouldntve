@@ -3,6 +3,8 @@ import {
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
 import * as jwt from 'jsonwebtoken';
+import { APIGatewayProxyResult } from 'aws-lambda';
+import { corsHeadersFromOrigin } from './cors';
 
 const secretsClient = new SecretsManagerClient({});
 const jwtSecretArn = process.env.JWT_SECRET_ARN;
@@ -57,4 +59,35 @@ export async function getSubjectFromHeaders(
     console.error('auth: invalid token', err);
     return null;
   }
+}
+
+type AuthResult =
+  | { authorized: true; subject: string }
+  | { authorized: false; response: APIGatewayProxyResult };
+
+/**
+ * Verify authentication from request headers.
+ * Returns the subject if authorized, or an unauthorized response if not.
+ *
+ * Usage:
+ *   const auth = await requireAuth(event.headers, origin);
+ *   if (!auth.authorized) return auth.response;
+ *   // auth.subject is now available
+ */
+export async function requireAuth(
+  headers: Record<string, string> | undefined,
+  origin: string
+): Promise<AuthResult> {
+  const subject = await getSubjectFromHeaders(headers);
+  if (!subject) {
+    return {
+      authorized: false,
+      response: {
+        statusCode: 401,
+        headers: corsHeadersFromOrigin(origin, 'application/json'),
+        body: JSON.stringify({ error: 'Unauthorized' }),
+      },
+    };
+  }
+  return { authorized: true, subject };
 }

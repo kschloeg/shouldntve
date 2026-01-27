@@ -3,6 +3,7 @@ import { CreatePredictionRequest, PredictionResponse } from '../types/psychic';
 import { PictureApiClient } from '../services/pictureApiClient';
 import { PredictionStore } from '../services/predictionStore';
 import { corsHeadersFromOrigin, getRequestOrigin } from '../../utils/cors';
+import { requireAuth } from '../../utils/authHelpers';
 
 /**
  * POST /psychic/create
@@ -24,6 +25,9 @@ export const handler = async (
   console.log('Creating psychic prediction', event);
 
   const origin = getRequestOrigin(event.headers as Record<string, string>);
+
+  const auth = await requireAuth(event.headers as Record<string, string>, origin);
+  if (!auth.authorized) return auth.response;
 
   try {
     if (!event.body) {

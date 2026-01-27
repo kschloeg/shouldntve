@@ -3,6 +3,7 @@ import { SubmitPredictionRequest, PredictionResponse } from '../types/psychic';
 import { PredictionStore } from '../services/predictionStore';
 import { PredictionComparer } from '../services/predictionComparer';
 import { corsHeadersFromOrigin, getRequestOrigin } from '../../utils/cors';
+import { requireAuth } from '../../utils/authHelpers';
 
 /**
  * POST /psychic/predict
@@ -26,6 +27,9 @@ export const handler = async (
   console.log('Event:', JSON.stringify(event, null, 2));
 
   const origin = getRequestOrigin(event.headers as Record<string, string>);
+
+  const auth = await requireAuth(event.headers as Record<string, string>, origin);
+  if (!auth.authorized) return auth.response;
 
   try {
     if (!event.body) {

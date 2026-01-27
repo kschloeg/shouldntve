@@ -1,11 +1,15 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { searchMarkets } from '../services/polymarketApiClient';
 import { corsHeadersFromOrigin, getRequestOrigin } from '../../utils/cors';
+import { requireAuth } from '../../utils/authHelpers';
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   console.log('getPolymarketSearch event:', JSON.stringify(event));
 
   const origin = getRequestOrigin(event.headers as Record<string, string>);
+
+  const auth = await requireAuth(event.headers as Record<string, string>, origin);
+  if (!auth.authorized) return auth.response;
 
   try {
     // Parse query parameters

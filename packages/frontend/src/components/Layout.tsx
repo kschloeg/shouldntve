@@ -67,11 +67,7 @@ export default function Layout({ children }: Props) {
                 Sign Out
               </Button>
             </>
-          ) : (
-            <Button color="inherit" onClick={() => navigate('/login')}>
-              Sign In to Shouldntve
-            </Button>
-          )}
+          ) : null}
         </Toolbar>
       </AppBar>
 

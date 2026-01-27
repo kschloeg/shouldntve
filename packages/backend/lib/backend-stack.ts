@@ -400,14 +400,17 @@ export class BackendStack extends cdk.Stack {
         handler: 'handler',
         environment: {
           FRONTEND_ORIGIN: frontendOrigin,
+          JWT_SECRET_ARN: jwtSecret.secretArn,
         },
         bundling: {
           minify: true,
+          externalModules: ['@aws-sdk/client-secrets-manager'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
       }
     );
+    jwtSecret.grantRead(getPolymarketSearch);
 
     const polymarketResource = api.root.addResource('polymarket');
     const searchResource = polymarketResource.addResource('search');
@@ -461,16 +464,18 @@ export class BackendStack extends cdk.Stack {
           TABLE_NAME: psychicTable.tableName,
           PEXELS_API_KEY: process.env.PEXELS_API_KEY || '',
           FRONTEND_ORIGIN: frontendOrigin,
+          JWT_SECRET_ARN: jwtSecret.secretArn,
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb'],
+          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
       }
     );
     psychicTable.grantWriteData(postPsychicCreate);
+    jwtSecret.grantRead(postPsychicCreate);
 
     // POST /psychic/predict
     const postPsychicPredict = new cdk.aws_lambda_nodejs.NodejsFunction(
@@ -483,16 +488,18 @@ export class BackendStack extends cdk.Stack {
           TABLE_NAME: psychicTable.tableName,
           ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
           FRONTEND_ORIGIN: frontendOrigin,
+          JWT_SECRET_ARN: jwtSecret.secretArn,
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb'],
+          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(60),
       }
     );
     psychicTable.grantReadWriteData(postPsychicPredict);
+    jwtSecret.grantRead(postPsychicPredict);
 
     // POST /psychic/reveal
     const postPsychicReveal = new cdk.aws_lambda_nodejs.NodejsFunction(
@@ -504,16 +511,18 @@ export class BackendStack extends cdk.Stack {
         environment: {
           TABLE_NAME: psychicTable.tableName,
           FRONTEND_ORIGIN: frontendOrigin,
+          JWT_SECRET_ARN: jwtSecret.secretArn,
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb'],
+          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
       }
     );
     psychicTable.grantReadWriteData(postPsychicReveal);
+    jwtSecret.grantRead(postPsychicReveal);
 
     // GET /psychic/{predictionId}
     const getPsychic = new cdk.aws_lambda_nodejs.NodejsFunction(
@@ -525,16 +534,18 @@ export class BackendStack extends cdk.Stack {
         environment: {
           TABLE_NAME: psychicTable.tableName,
           FRONTEND_ORIGIN: frontendOrigin,
+          JWT_SECRET_ARN: jwtSecret.secretArn,
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb'],
+          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
       }
     );
     psychicTable.grantReadData(getPsychic);
+    jwtSecret.grantRead(getPsychic);
 
     // GET /psychic
     const getPsychicList = new cdk.aws_lambda_nodejs.NodejsFunction(
@@ -546,16 +557,18 @@ export class BackendStack extends cdk.Stack {
         environment: {
           TABLE_NAME: psychicTable.tableName,
           FRONTEND_ORIGIN: frontendOrigin,
+          JWT_SECRET_ARN: jwtSecret.secretArn,
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb'],
+          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
       }
     );
     psychicTable.grantReadData(getPsychicList);
+    jwtSecret.grantRead(getPsychicList);
 
     // DELETE /psychic/{predictionId}
     const deletePsychic = new cdk.aws_lambda_nodejs.NodejsFunction(
@@ -567,16 +580,18 @@ export class BackendStack extends cdk.Stack {
         environment: {
           TABLE_NAME: psychicTable.tableName,
           FRONTEND_ORIGIN: frontendOrigin,
+          JWT_SECRET_ARN: jwtSecret.secretArn,
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb'],
+          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
       }
     );
     psychicTable.grantReadWriteData(deletePsychic);
+    jwtSecret.grantRead(deletePsychic);
 
     // POST /psychic/{predictionId}/test
     const postPsychicTest = new cdk.aws_lambda_nodejs.NodejsFunction(

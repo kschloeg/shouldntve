@@ -615,6 +615,33 @@ export class BackendStack extends cdk.Stack {
     );
     psychicTable.grantReadData(postPsychicTest);
 
+    // POST /psychic/llm-predict
+    const postPsychicLlmPredict = new cdk.aws_lambda_nodejs.NodejsFunction(
+      this,
+      'PostPsychicLlmPredict',
+      {
+        entry: join(__dirname, 'psychic', 'functions', 'postPsychicLlmPredict.ts'),
+        handler: 'handler',
+        environment: {
+          TABLE_NAME: psychicTable.tableName,
+          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+          GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY || '',
+          OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+          FRONTEND_ORIGIN: frontendOrigin,
+          JWT_SECRET_ARN: jwtSecret.secretArn,
+        },
+        bundling: {
+          minify: true,
+          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
+        },
+        runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
+        timeout: cdk.Duration.seconds(120),
+        memorySize: 512,
+      }
+    );
+    psychicTable.grantReadWriteData(postPsychicLlmPredict);
+    jwtSecret.grantRead(postPsychicLlmPredict);
+
     // Set up API Gateway resources
     const psychicResource = api.root.addResource('psychic');
     psychicResource.addCorsPreflight({
@@ -665,6 +692,21 @@ export class BackendStack extends cdk.Stack {
     revealResource.addMethod(
       'POST',
       new cdk.aws_apigateway.LambdaIntegration(postPsychicReveal, {
+        proxy: true,
+      })
+    );
+
+    // POST /psychic/llm-predict
+    const llmPredictResource = psychicResource.addResource('llm-predict');
+    llmPredictResource.addCorsPreflight({
+      allowOrigins: [frontendOrigin],
+      allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+      allowHeaders: cdk.aws_apigateway.Cors.DEFAULT_HEADERS,
+      allowCredentials: true,
+    });
+    llmPredictResource.addMethod(
+      'POST',
+      new cdk.aws_apigateway.LambdaIntegration(postPsychicLlmPredict, {
         proxy: true,
       })
     );

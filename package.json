@@ -12,8 +12,7 @@
   "private": true,
   "dependencies": {
     "@balena/dockerignore": "^1.0.2",
-    "ignore": "^5.3.2",
-    "minimatch": "^9.0.3"
+    "ignore": "^5.3.2"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
@@ -30,5 +29,10 @@
   "workspaces": [
     "libs/**",
     "packages/**"
-  ]
+  ],
+  "pnpm": {
+    "overrides": {
+      "minimatch@>=6": "5.1.6"
+    }
+  }
 }

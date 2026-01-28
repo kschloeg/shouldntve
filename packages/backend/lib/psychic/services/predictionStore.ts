@@ -94,7 +94,8 @@ export class PredictionStore {
     confidenceScore: number,
     reasoning?: string,
     picture1Analysis?: string,
-    picture2Analysis?: string
+    picture2Analysis?: string,
+    predictorType?: 'human' | 'claude-4.5' | 'gemini-3' | 'gpt-5'
   ): Promise<void> {
     const now = new Date().toISOString();
 
@@ -109,7 +110,7 @@ export class PredictionStore {
           'SET #status = :status, predictionText = :predictionText, predictionSketchUrl = :predictionSketchUrl, ' +
           'predictionTimestamp = :predictionTimestamp, matchedTeam = :matchedTeam, confidenceScore = :confidenceScore, ' +
           'reasoning = :reasoning, picture1Analysis = :picture1Analysis, picture2Analysis = :picture2Analysis, ' +
-          'updatedAt = :updatedAt',
+          'predictorType = :predictorType, updatedAt = :updatedAt',
         ExpressionAttributeNames: {
           '#status': 'status',
         },
@@ -123,6 +124,7 @@ export class PredictionStore {
           ':reasoning': reasoning || null,
           ':picture1Analysis': picture1Analysis || null,
           ':picture2Analysis': picture2Analysis || null,
+          ':predictorType': predictorType || 'human',
           ':updatedAt': now,
         },
       })

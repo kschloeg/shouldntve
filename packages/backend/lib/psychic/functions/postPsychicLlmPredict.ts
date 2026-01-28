@@ -1,34 +1,41 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { SubmitPredictionRequest, PredictionResponse } from '../types/psychic';
+import {
+  LlmPredictionRequest,
+  LlmPredictionResponse,
+  LlmModel,
+} from '../types/psychic';
 import { PredictionStore } from '../services/predictionStore';
 import { PredictionComparer } from '../services/predictionComparer';
+import { LlmPredictionGenerator } from '../services/llmPredictionGenerator';
 import { corsHeadersFromOrigin, getRequestOrigin } from '../../utils/cors';
 import { requireAuth } from '../../utils/authHelpers';
 
+const VALID_MODELS: LlmModel[] = ['claude-4.5', 'gemini-3', 'gpt-5'];
+
 /**
- * POST /psychic/predict
+ * POST /psychic/llm-predict
  *
- * Submits a psychic prediction (text and/or sketch) and compares it
+ * Generates a psychic prediction using an LLM model and then compares it
  * with the two pictures to determine if there's a match.
  *
  * Request body:
  * {
  *   "predictionId": "pred_123...",
- *   "predictionText": "I see a blue ocean with waves...",
- *   "predictionSketchUrl": "https://..." // optional
+ *   "model": "claude-4.5" | "gemini-3" | "gpt-5"
  * }
  */
-const VERSION = '1.0.4'; // Increment this with each deploy
-
 export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
-  console.log(`[postPsychicPredict v${VERSION}] Starting request`);
+  console.log('[postPsychicLlmPredict] Starting request');
   console.log('Event:', JSON.stringify(event, null, 2));
 
   const origin = getRequestOrigin(event.headers as Record<string, string>);
 
-  const auth = await requireAuth(event.headers as Record<string, string>, origin);
+  const auth = await requireAuth(
+    event.headers as Record<string, string>,
+    origin
+  );
   if (!auth.authorized) return auth.response;
 
   try {
@@ -40,7 +47,7 @@ export const handler = async (
       };
     }
 
-    const request: SubmitPredictionRequest = JSON.parse(event.body);
+    const request: LlmPredictionRequest = JSON.parse(event.body);
 
     if (!request.predictionId) {
       return {
@@ -50,12 +57,12 @@ export const handler = async (
       };
     }
 
-    if (!request.predictionText && !request.predictionSketchUrl) {
+    if (!request.model || !VALID_MODELS.includes(request.model)) {
       return {
         statusCode: 400,
         headers: corsHeadersFromOrigin(origin, 'application/json'),
         body: JSON.stringify({
-          error: 'At least one of predictionText or predictionSketchUrl is required',
+          error: `model must be one of: ${VALID_MODELS.join(', ')}`,
         }),
       };
     }
@@ -82,21 +89,39 @@ export const handler = async (
       };
     }
 
-    // Compare the prediction with the pictures
-    console.log('[postPsychicPredict] Creating PredictionComparer...');
+    // Generate blind prediction using selected LLM (no pictures shown to AI)
+    console.log(
+      `[postPsychicLlmPredict] Generating blind prediction with ${request.model}`
+    );
+    const generator = new LlmPredictionGenerator();
+    const generatedText = await generator.generatePrediction(request.model);
+
+    console.log('[postPsychicLlmPredict] Generated text:', generatedText);
+
+    // Compare the generated prediction with the pictures
+    console.log('[postPsychicLlmPredict] Creating PredictionComparer...');
     const comparer = new PredictionComparer();
 
-    console.log('[postPsychicPredict] Calling comparePrediction...');
+    console.log('[postPsychicLlmPredict] Calling comparePrediction...');
     const comparisonResult = await comparer.comparePrediction(
-      request.predictionText,
-      request.predictionSketchUrl,
+      generatedText,
+      undefined,
       prediction.picture1,
       prediction.picture2
     );
 
-    console.log('[postPsychicPredict] Comparison result:', JSON.stringify(comparisonResult, null, 2));
+    console.log(
+      '[postPsychicLlmPredict] Comparison result:',
+      JSON.stringify(comparisonResult, null, 2)
+    );
 
-    const { matchedPictureId, confidenceScore, reasoning, picture1Analysis, picture2Analysis } = comparisonResult;
+    const {
+      matchedPictureId,
+      confidenceScore,
+      reasoning,
+      picture1Analysis,
+      picture2Analysis,
+    } = comparisonResult;
 
     // Determine which team the matched picture corresponds to
     let matchedTeam: string | undefined;
@@ -109,38 +134,34 @@ export const handler = async (
     }
 
     // Update the prediction in the database
-    console.log('[postPsychicPredict] Updating prediction in database...');
-    console.log('[postPsychicPredict] Matched team:', matchedTeam);
-    console.log('[postPsychicPredict] Confidence:', confidenceScore);
-    console.log('[postPsychicPredict] Reasoning:', reasoning);
-    console.log('[postPsychicPredict] Picture1Analysis:', picture1Analysis);
-    console.log('[postPsychicPredict] Picture2Analysis:', picture2Analysis);
-
+    console.log('[postPsychicLlmPredict] Updating prediction in database...');
     await store.updatePredictionGuess(
       request.predictionId,
-      request.predictionText,
-      request.predictionSketchUrl,
+      generatedText,
+      undefined,
       matchedTeam,
       confidenceScore,
       reasoning,
       picture1Analysis,
-      picture2Analysis,
-      'human'
+      picture2Analysis
     );
 
-    console.log('[postPsychicPredict] Database update complete');
+    console.log('[postPsychicLlmPredict] Database update complete');
 
     // Get the updated prediction
     const updatedPrediction = await store.getPrediction(request.predictionId);
 
     // Remove picture data to prevent psychic from seeing pictures
-    const { picture1, picture2, ...predictionWithoutPictures } = updatedPrediction!;
+    const { picture1, picture2, ...predictionWithoutPictures } =
+      updatedPrediction!;
 
-    const response: PredictionResponse = {
+    const response: LlmPredictionResponse = {
       prediction: predictionWithoutPictures as any,
+      llmModel: request.model,
+      generatedText,
     };
 
-    console.log('[postPsychicPredict] Sending response:', JSON.stringify(response, null, 2));
+    console.log('[postPsychicLlmPredict] Sending response');
 
     return {
       statusCode: 200,
@@ -148,12 +169,12 @@ export const handler = async (
       body: JSON.stringify(response),
     };
   } catch (error) {
-    console.error('Error submitting psychic prediction:', error);
+    console.error('Error generating LLM psychic prediction:', error);
     return {
       statusCode: 500,
       headers: corsHeadersFromOrigin(origin, 'application/json'),
       body: JSON.stringify({
-        error: 'Failed to submit prediction',
+        error: 'Failed to generate prediction',
         details: error instanceof Error ? error.message : 'Unknown error',
       }),
     };

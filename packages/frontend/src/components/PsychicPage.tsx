@@ -27,8 +27,18 @@ import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import PersonIcon from '@mui/icons-material/Person';
 import Layout from './Layout';
 import { useSnackbar } from './snackbarContext';
+
+type LlmModel = 'claude-4.5' | 'gemini-3' | 'gpt-5';
 
 interface PsychicPicture {
   id: string;
@@ -52,6 +62,7 @@ interface PsychicPrediction {
   team1PictureId?: string;
   predictionText?: string;
   predictionSketchUrl?: string;
+  predictorType?: 'human' | 'claude-4.5' | 'gemini-3' | 'gpt-5';
   matchedTeam?: string;
   confidenceScore?: number;
   reasoning?: string;
@@ -77,6 +88,8 @@ export default function PsychicPage() {
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [showPictures, setShowPictures] = useState(false);
   const [loadingPictures, setLoadingPictures] = useState(false);
+  const [predictionMode, setPredictionMode] = useState<'manual' | 'llm'>('manual');
+  const [selectedModel, setSelectedModel] = useState<LlmModel>('claude-4.5');
   const showSnackbar = useSnackbar();
 
   const loadPredictions = useCallback(async () => {
@@ -103,53 +116,53 @@ export default function PsychicPage() {
     }
   }, [showSnackbar]);
 
+  const loadPrediction = useCallback(async (id: string) => {
+    setLoading(true);
+    try {
+      const response = await apiFetch(
+        `${import.meta.env.VITE_API_URL}/psychic/${id}`,
+        {
+          method: 'GET',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to load prediction');
+      }
+
+      const data = await response.json();
+      setPrediction(data.prediction);
+
+      // Set the appropriate step based on prediction status
+      if (data.prediction.status === 'created') {
+        setActiveStep(1);
+      } else if (
+        data.prediction.status === 'prediction_made' ||
+        data.prediction.status === 'revealed'
+      ) {
+        setActiveStep(2);
+        setPredictionText(data.prediction.predictionText || '');
+        if (data.prediction.status === 'revealed') {
+          setWinningTeam(data.prediction.winningTeam || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading prediction:', error);
+      showSnackbar?.('Failed to load prediction', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [showSnackbar]);
+
   // Load prediction if predictionId is in URL
   useEffect(() => {
-    const loadPrediction = async (id: string) => {
-      setLoading(true);
-      try {
-        const response = await apiFetch(
-          `${import.meta.env.VITE_API_URL}/psychic/${id}`,
-          {
-            method: 'GET',
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to load prediction');
-        }
-
-        const data = await response.json();
-        setPrediction(data.prediction);
-
-        // Set the appropriate step based on prediction status
-        if (data.prediction.status === 'created') {
-          setActiveStep(1);
-        } else if (
-          data.prediction.status === 'prediction_made' ||
-          data.prediction.status === 'revealed'
-        ) {
-          setActiveStep(2);
-          setPredictionText(data.prediction.predictionText || '');
-          if (data.prediction.status === 'revealed') {
-            setWinningTeam(data.prediction.winningTeam || '');
-          }
-        }
-      } catch (error) {
-        console.error('Error loading prediction:', error);
-        showSnackbar?.('Failed to load prediction', 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (predictionId) {
       loadPrediction(predictionId);
     } else {
       // Load list of predictions when on main page
       loadPredictions();
     }
-  }, [loadPredictions, predictionId, showSnackbar]);
+  }, [loadPredictions, loadPrediction, predictionId]);
 
   // Step 1: Create a new prediction
   const handleCreatePrediction = async () => {
@@ -194,7 +207,7 @@ export default function PsychicPage() {
     }
   };
 
-  // Step 2: Submit the psychic's prediction
+  // Step 2: Submit the psychic's prediction (manual)
   const handleSubmitPrediction = async () => {
     if (!predictionText.trim()) {
       showSnackbar?.('Please enter your prediction', 'error');
@@ -241,6 +254,57 @@ export default function PsychicPage() {
     } catch (error) {
       console.error('Error submitting prediction:', error);
       showSnackbar?.('Failed to submit prediction', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Submit LLM-generated prediction
+  const handleLlmPrediction = async () => {
+    if (!prediction) {
+      showSnackbar?.('No active prediction', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiFetch(
+        `${import.meta.env.VITE_API_URL}/psychic/llm-predict`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            predictionId: prediction.id,
+            model: selectedModel,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate LLM prediction');
+      }
+
+      const data = await response.json();
+      setPrediction(data.prediction);
+      setPredictionText(data.generatedText);
+      setActiveStep(2);
+
+      const modelName = selectedModel === 'claude-4.5' ? 'Claude 4.5' : selectedModel === 'gemini-3' ? 'Gemini 3' : 'GPT-5';
+
+      if (data.prediction.matchedTeam) {
+        showSnackbar?.(
+          `${modelName} prediction matched: ${data.prediction.matchedTeam} (Confidence: ${data.prediction.confidenceScore}%)`,
+          'success'
+        );
+      } else {
+        showSnackbar?.(`${modelName} generated prediction, but no significant match found`, 'info');
+      }
+    } catch (error) {
+      console.error('Error generating LLM prediction:', error);
+      showSnackbar?.(error instanceof Error ? error.message : 'Failed to generate LLM prediction', 'error');
     } finally {
       setLoading(false);
     }
@@ -297,6 +361,8 @@ export default function PsychicPage() {
     setPredictionText('');
     setWinningTeam('');
     setShowPictures(false);
+    setPredictionMode('manual');
+    setSelectedModel('claude-4.5');
     navigate('/psychic');
     loadPredictions();
   };
@@ -455,7 +521,9 @@ export default function PsychicPage() {
                           <TableCell>ID</TableCell>
                           <TableCell>Teams</TableCell>
                           <TableCell>Status</TableCell>
+                          <TableCell>Predictor</TableCell>
                           <TableCell>Matched Team</TableCell>
+                          <TableCell>Success</TableCell>
                           <TableCell>Created</TableCell>
                           <TableCell align="right">Actions</TableCell>
                         </TableRow>
@@ -487,7 +555,45 @@ export default function PsychicPage() {
                                 }
                               />
                             </TableCell>
+                            <TableCell>
+                              {pred.predictorType === 'human' ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <PersonIcon fontSize="small" />
+                                  Human
+                                </Box>
+                              ) : pred.predictorType === 'claude-4.5' ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <SmartToyIcon fontSize="small" />
+                                  Claude
+                                </Box>
+                              ) : pred.predictorType === 'gemini-3' ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <SmartToyIcon fontSize="small" />
+                                  Gemini
+                                </Box>
+                              ) : pred.predictorType === 'gpt-5' ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <SmartToyIcon fontSize="small" />
+                                  GPT
+                                </Box>
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
                             <TableCell>{pred.matchedTeam || '-'}</TableCell>
+                            <TableCell>
+                              {pred.status === 'revealed' && pred.matchedTeam && pred.winningTeam ? (
+                                pred.matchedTeam === pred.winningTeam ? (
+                                  <Chip label="✓ Correct" color="success" size="small" />
+                                ) : (
+                                  <Chip label="✗ Incorrect" color="error" size="small" />
+                                )
+                              ) : pred.status === 'revealed' && !pred.matchedTeam ? (
+                                <Chip label="No Match" color="default" size="small" />
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
                             <TableCell>
                               {new Date(pred.createdAt).toLocaleDateString()}
                             </TableCell>
@@ -532,9 +638,9 @@ export default function PsychicPage() {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
               <Alert severity="info" sx={{ flexGrow: 1 }}>
-                Describe the picture you will be shown after the event. Be as
-                specific as possible about colors, objects, composition, and mood.
-                Do not look at the pictures until after you submit your prediction!
+                {predictionMode === 'manual'
+                  ? 'Describe the picture you will be shown after the event. Be as specific as possible about colors, objects, composition, and mood.'
+                  : 'Let an AI model generate a blind psychic prediction. The AI will NOT see the pictures - it generates a prediction purely through "intuition".'}
               </Alert>
               <Button
                 variant="outlined"
@@ -551,28 +657,84 @@ export default function PsychicPage() {
                 <Typography variant="h6" sx={{ mb: 2 }}>
                   Teams: {prediction.team1} vs {prediction.team2}
                 </Typography>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={6}
-                  label="Your Prediction"
-                  variant="outlined"
-                  value={predictionText}
-                  onChange={(e) => setPredictionText(e.target.value)}
-                  placeholder="Describe what you see in your mind... colors, objects, setting, mood, etc."
-                  sx={{ mb: 2 }}
-                />
-                <Button
-                  variant="contained"
-                  onClick={handleSubmitPrediction}
-                  disabled={loading || !predictionText.trim()}
-                >
-                  {loading ? (
-                    <CircularProgress size={24} />
-                  ) : (
-                    'Submit Prediction'
-                  )}
-                </Button>
+
+                {/* Prediction Mode Toggle */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Prediction Method
+                  </Typography>
+                  <ToggleButtonGroup
+                    value={predictionMode}
+                    exclusive
+                    onChange={(_, value) => value && setPredictionMode(value)}
+                    aria-label="prediction mode"
+                  >
+                    <ToggleButton value="manual" aria-label="manual prediction">
+                      <PersonIcon sx={{ mr: 1 }} />
+                      Manual
+                    </ToggleButton>
+                    <ToggleButton value="llm" aria-label="llm prediction">
+                      <SmartToyIcon sx={{ mr: 1 }} />
+                      AI Generated
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+
+                {predictionMode === 'manual' ? (
+                  <>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={6}
+                      label="Your Prediction"
+                      variant="outlined"
+                      value={predictionText}
+                      onChange={(e) => setPredictionText(e.target.value)}
+                      placeholder="Describe what you see in your mind... colors, objects, setting, mood, etc."
+                      sx={{ mb: 2 }}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={handleSubmitPrediction}
+                      disabled={loading || !predictionText.trim()}
+                    >
+                      {loading ? (
+                        <CircularProgress size={24} />
+                      ) : (
+                        'Submit Prediction'
+                      )}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <FormControl fullWidth sx={{ mb: 3 }}>
+                      <InputLabel id="llm-model-label">AI Model</InputLabel>
+                      <Select
+                        labelId="llm-model-label"
+                        value={selectedModel}
+                        label="AI Model"
+                        onChange={(e) => setSelectedModel(e.target.value as LlmModel)}
+                      >
+                        <MenuItem value="claude-4.5">Claude 4.5 (Anthropic)</MenuItem>
+                        <MenuItem value="gemini-3">Gemini 3 (Google)</MenuItem>
+                        <MenuItem value="gpt-5">GPT-5 (OpenAI)</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      The AI will generate a blind prediction without seeing the pictures.
+                      This is a true test of AI &quot;psychic&quot; ability - the prediction
+                      is then compared against the actual pictures to see if it matches.
+                    </Alert>
+                    <Button
+                      variant="contained"
+                      onClick={handleLlmPrediction}
+                      disabled={loading}
+                      startIcon={loading ? <CircularProgress size={20} /> : <SmartToyIcon />}
+                    >
+                      {loading ? 'Generating...' : `Generate ${selectedModel === 'claude-4.5' ? 'Claude' : selectedModel === 'gemini-3' ? 'Gemini' : 'GPT'} Prediction`}
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -686,6 +848,20 @@ export default function PsychicPage() {
                 Copy URL
               </Button>
             </Box>
+
+            {/* Always show the prediction text */}
+            {prediction.predictionText && (
+              <Card sx={{ mb: 3, bgcolor: 'grey.50' }}>
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    <strong>Your Prediction:</strong>
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontStyle: 'italic' }}>
+                    "{prediction.predictionText}"
+                  </Typography>
+                </CardContent>
+              </Card>
+            )}
             {prediction.matchedTeam && (
               <Box sx={{ mb: 3 }}>
                 <Alert severity="success" sx={{ mb: 2 }}>

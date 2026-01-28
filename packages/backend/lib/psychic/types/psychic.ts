@@ -53,6 +53,7 @@ export interface PsychicPrediction {
   predictionText?: string;
   predictionSketchUrl?: string;
   predictionTimestamp?: string;
+  predictorType?: 'human' | 'claude-4.5' | 'gemini-3' | 'gpt-5'; // Who made the prediction
 
   // Comparison result
   matchedTeam?: string; // team1 or team2, or undefined if no match
@@ -105,4 +106,26 @@ export interface PredictionResponse {
 export interface ListPredictionsResponse {
   predictions: PsychicPrediction[];
   count: number;
+}
+
+/**
+ * Supported LLM models for generating predictions
+ */
+export type LlmModel = 'claude-4.5' | 'gemini-3' | 'gpt-5';
+
+/**
+ * Request for LLM to generate a psychic prediction
+ */
+export interface LlmPredictionRequest {
+  predictionId: string;
+  model: LlmModel;
+}
+
+/**
+ * Response from LLM prediction generation
+ */
+export interface LlmPredictionResponse {
+  prediction: PsychicPrediction;
+  llmModel: LlmModel;
+  generatedText: string;
 }

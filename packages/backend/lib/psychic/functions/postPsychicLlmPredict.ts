@@ -143,7 +143,8 @@ export const handler = async (
       confidenceScore,
       reasoning,
       picture1Analysis,
-      picture2Analysis
+      picture2Analysis,
+      request.model
     );
 
     console.log('[postPsychicLlmPredict] Database update complete');

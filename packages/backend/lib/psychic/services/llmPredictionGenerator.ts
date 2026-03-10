@@ -100,7 +100,7 @@ Now focus your psychic abilities and describe what you sense the photograph will
     );
 
     const model = this.gemini.getGenerativeModel({
-      model: 'gemini-2.5-pro-preview-05-06',
+      model: 'gemini-3-pro-preview',
     });
 
     const result = await model.generateContent([

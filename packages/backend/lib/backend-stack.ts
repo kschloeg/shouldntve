@@ -310,7 +310,8 @@ export class BackendStack extends cdk.Stack {
         entry: join(__dirname, 'sports', 'functions', 'dailySportsScores.ts'),
         handler: 'handler',
         environment: {
-          RECIPIENT_EMAIL: process.env.SPORTS_RECIPIENT_EMAIL || 'kschloeg@gmail.com',
+          RECIPIENT_EMAIL:
+            process.env.SPORTS_RECIPIENT_EMAIL || 'kschloeg@gmail.com',
           SES_FROM_ADDRESS: process.env.SES_FROM_ADDRESS || '',
         },
         bundling: {
@@ -331,17 +332,21 @@ export class BackendStack extends cdk.Stack {
       })
     );
 
-    // EventBridge rule to trigger daily at 4am CST (10am UTC)
-    const dailySportsRule = new cdk.aws_events.Rule(this, 'DailySportsScoresRule', {
-      schedule: cdk.aws_events.Schedule.cron({
-        minute: '0',
-        hour: '10', // 4am CST = 10am UTC
-        day: '*',
-        month: '*',
-        year: '*',
-      }),
-      description: 'Trigger daily sports scores check at 4am CST',
-    });
+    // EventBridge rule to trigger daily at 2am CST / 3am CDT (8am UTC)
+    const dailySportsRule = new cdk.aws_events.Rule(
+      this,
+      'DailySportsScoresRule',
+      {
+        schedule: cdk.aws_events.Schedule.cron({
+          minute: '0',
+          hour: '8', // 2am CST / 3am CDT = 8am UTC
+          day: '*',
+          month: '*',
+          year: '*',
+        }),
+        description: 'Trigger daily sports scores check at 2am CST / 3am CDT',
+      }
+    );
 
     // Add Lambda as target for the rule
     dailySportsRule.addTarget(
@@ -359,7 +364,12 @@ export class BackendStack extends cdk.Stack {
       this,
       'TriggerSportsScores',
       {
-        entry: join(__dirname, 'sports', 'functions', 'postSportsScoresTrigger.ts'),
+        entry: join(
+          __dirname,
+          'sports',
+          'functions',
+          'postSportsScoresTrigger.ts'
+        ),
         handler: 'handler',
         environment: {
           JWT_SECRET_ARN: jwtSecret.secretArn,
@@ -368,7 +378,10 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-lambda', '@aws-sdk/client-secrets-manager'],
+          externalModules: [
+            '@aws-sdk/client-lambda',
+            '@aws-sdk/client-secrets-manager',
+          ],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
       }
@@ -396,7 +409,12 @@ export class BackendStack extends cdk.Stack {
       this,
       'GetPolymarketSearch',
       {
-        entry: join(__dirname, 'polymarket', 'functions', 'getPolymarketSearch.ts'),
+        entry: join(
+          __dirname,
+          'polymarket',
+          'functions',
+          'getPolymarketSearch.ts'
+        ),
         handler: 'handler',
         environment: {
           FRONTEND_ORIGIN: frontendOrigin,
@@ -428,17 +446,21 @@ export class BackendStack extends cdk.Stack {
     );
 
     // Psychic prediction endpoints
-    const psychicTable = new cdk.aws_dynamodb.Table(this, 'PsychicPredictionsTable', {
-      partitionKey: {
-        name: 'PK',
-        type: cdk.aws_dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: 'SK',
-        type: cdk.aws_dynamodb.AttributeType.STRING,
-      },
-      billingMode: cdk.aws_dynamodb.BillingMode.PAY_PER_REQUEST,
-    });
+    const psychicTable = new cdk.aws_dynamodb.Table(
+      this,
+      'PsychicPredictionsTable',
+      {
+        partitionKey: {
+          name: 'PK',
+          type: cdk.aws_dynamodb.AttributeType.STRING,
+        },
+        sortKey: {
+          name: 'SK',
+          type: cdk.aws_dynamodb.AttributeType.STRING,
+        },
+        billingMode: cdk.aws_dynamodb.BillingMode.PAY_PER_REQUEST,
+      }
+    );
 
     // Add GSI for listing predictions
     psychicTable.addGlobalSecondaryIndex({
@@ -468,7 +490,10 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
+          externalModules: [
+            '@aws-sdk/client-dynamodb',
+            '@aws-sdk/client-secrets-manager',
+          ],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
@@ -492,7 +517,10 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
+          externalModules: [
+            '@aws-sdk/client-dynamodb',
+            '@aws-sdk/client-secrets-manager',
+          ],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(60),
@@ -515,7 +543,10 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
+          externalModules: [
+            '@aws-sdk/client-dynamodb',
+            '@aws-sdk/client-secrets-manager',
+          ],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
@@ -538,7 +569,10 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
+          externalModules: [
+            '@aws-sdk/client-dynamodb',
+            '@aws-sdk/client-secrets-manager',
+          ],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
@@ -561,7 +595,10 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
+          externalModules: [
+            '@aws-sdk/client-dynamodb',
+            '@aws-sdk/client-secrets-manager',
+          ],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
@@ -584,7 +621,10 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
+          externalModules: [
+            '@aws-sdk/client-dynamodb',
+            '@aws-sdk/client-secrets-manager',
+          ],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(30),
@@ -620,7 +660,12 @@ export class BackendStack extends cdk.Stack {
       this,
       'PostPsychicLlmPredict',
       {
-        entry: join(__dirname, 'psychic', 'functions', 'postPsychicLlmPredict.ts'),
+        entry: join(
+          __dirname,
+          'psychic',
+          'functions',
+          'postPsychicLlmPredict.ts'
+        ),
         handler: 'handler',
         environment: {
           TABLE_NAME: psychicTable.tableName,
@@ -632,7 +677,10 @@ export class BackendStack extends cdk.Stack {
         },
         bundling: {
           minify: true,
-          externalModules: ['@aws-sdk/client-dynamodb', '@aws-sdk/client-secrets-manager'],
+          externalModules: [
+            '@aws-sdk/client-dynamodb',
+            '@aws-sdk/client-secrets-manager',
+          ],
         },
         runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
         timeout: cdk.Duration.seconds(120),

@@ -5,7 +5,7 @@ export interface Team {
   league: League;
 }
 
-export type League = 'NFL' | 'MLB' | 'NBA' | 'NHL' | 'WNBA' | 'MLS' | 'NCAAF' | 'NCAAB';
+export type League = 'NFL' | 'MLB' | 'NBA' | 'NHL' | 'WNBA' | 'MLS' | 'NCAAF' | 'NCAAB' | 'FIFA_WORLD_CUP';
 
 export interface TeamRecord {
   wins: number;

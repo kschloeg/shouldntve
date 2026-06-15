@@ -20,6 +20,7 @@ export class SportsApiClient {
       MLS: `${this.ESPN_BASE_URL}/soccer/usa.1/scoreboard`,
       NCAAF: `${this.ESPN_BASE_URL}/football/college-football/scoreboard`,
       NCAAB: `${this.ESPN_BASE_URL}/basketball/mens-college-basketball/scoreboard`,
+      FIFA_WORLD_CUP: `${this.ESPN_BASE_URL}/soccer/fifa.world/scoreboard`,
     };
     return endpoints[league];
   }
@@ -196,6 +197,36 @@ export class SportsApiClient {
     const day = String(tomorrow.getDate()).padStart(2, '0');
 
     return `${year}${month}${day}`;
+  }
+
+  /**
+   * Fetch all World Cup games for a specific date (no team filter)
+   * @param date - Date in YYYYMMDD format
+   */
+  async fetchWorldCupGames(date: string): Promise<Game[]> {
+    return this.fetchScoresForLeague(date, 'FIFA_WORLD_CUP');
+  }
+
+  /**
+   * Fetch upcoming World Cup games (today and tomorrow, within next 24 hours)
+   */
+  async fetchUpcomingWorldCupGames(): Promise<Game[]> {
+    const today = this.getTodayDate();
+    const tomorrow = this.getTomorrowDate();
+
+    const [todayGames, tomorrowGames] = await Promise.all([
+      this.fetchWorldCupGames(today),
+      this.fetchWorldCupGames(tomorrow),
+    ]);
+
+    const allGames = [...todayGames, ...tomorrowGames];
+
+    return allGames.filter(game => {
+      const gameTime = new Date(game.date);
+      const now = new Date();
+      const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      return gameTime >= now && gameTime <= next24Hours && game.status === 'scheduled';
+    });
   }
 
   /**

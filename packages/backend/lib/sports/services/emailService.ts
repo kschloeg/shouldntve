@@ -13,7 +13,7 @@ export class EmailService {
   /**
    * Generate HTML email content for game results and upcoming games
    */
-  private generateEmailHtml(games: Game[], upcomingGames: Game[], date: string): string {
+  private generateEmailHtml(games: Game[], upcomingGames: Game[], date: string, worldCupGames: Game[] = [], upcomingWorldCupGames: Game[] = []): string {
     const gamesHtml = games.length > 0
       ? games.map(game => this.generateGameHtml(game, false)).join('')
       : '<div class="content"><p>No Minnesota teams played yesterday.</p></div>';
@@ -27,6 +27,28 @@ export class EmailService {
       `
       : '';
 
+    const hasWorldCup = worldCupGames.length > 0 || upcomingWorldCupGames.length > 0;
+    const worldCupHtml = hasWorldCup
+      ? `
+        <div class="wc-header">
+          <h1>⚽ 2026 FIFA World Cup</h1>
+        </div>
+        ${worldCupGames.length > 0
+          ? worldCupGames.map(game => this.generateGameHtml(game, false)).join('')
+          : '<div class="content"><p>No World Cup matches yesterday.</p></div>'
+        }
+        ${upcomingWorldCupGames.length > 0
+          ? `
+            <div class="section-header">
+              <h2>📅 Upcoming Matches (Next 24 Hours)</h2>
+            </div>
+            ${upcomingWorldCupGames.map(game => this.generateGameHtml(game, true)).join('')}
+          `
+          : ''
+        }
+      `
+      : '';
+
     return `
       <html>
         <head>
@@ -34,10 +56,12 @@ export class EmailService {
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
             .header { background-color: #862334; color: white; padding: 20px; text-align: center; }
+            .wc-header { background-color: #1a6e34; color: white; padding: 20px; text-align: center; margin-top: 30px; }
             .section-header { background-color: #f0f0f0; padding: 15px; margin: 20px 0 10px 0; border-radius: 8px; text-align: center; }
             .section-header h2 { margin: 0; color: #862334; font-size: 20px; }
             .game { background-color: white; margin: 15px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
             .league-badge { background-color: #003f87; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
+            .league-badge.wc { background-color: #1a6e34; }
             .teams { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; }
             .team { flex: 1; text-align: center; }
             .team-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
@@ -58,6 +82,7 @@ export class EmailService {
             </div>
             ${gamesHtml}
             ${upcomingHtml}
+            ${worldCupHtml}
           </div>
         </body>
       </html>
@@ -92,9 +117,13 @@ export class EmailService {
       ? `<div class="game-time">${this.formatGameTime(game.date)}</div>`
       : '';
 
+    const isWorldCup = game.league === 'FIFA_WORLD_CUP';
+    const badgeLabel = isWorldCup ? '⚽ World Cup' : game.league;
+    const badgeClass = isWorldCup ? 'league-badge wc' : 'league-badge';
+
     return `
       <div class="game">
-        <span class="league-badge">${game.league}</span>
+        <span class="${badgeClass}">${badgeLabel}</span>
         <div class="teams">
           <div class="team">
             <div class="team-name ${awayClass}">${game.awayTeam.name}${awayRecord}</div>
@@ -175,21 +204,31 @@ export class EmailService {
     toAddress: string,
     games: Game[],
     upcomingGames: Game[],
-    date: string
+    date: string,
+    worldCupGames: Game[] = [],
+    upcomingWorldCupGames: Game[] = []
   ): Promise<void> {
-    const parts = [];
+    const mnParts = [];
     if (games.length > 0) {
-      parts.push(`${games.length} Result${games.length !== 1 ? 's' : ''}`);
+      mnParts.push(`${games.length} Result${games.length !== 1 ? 's' : ''}`);
     }
     if (upcomingGames.length > 0) {
-      parts.push(`${upcomingGames.length} Upcoming`);
+      mnParts.push(`${upcomingGames.length} Upcoming`);
     }
+    const mnLabel = mnParts.length > 0 ? `Minnesota Sports - ${mnParts.join(', ')}` : 'Minnesota Sports - No Games';
 
-    const subject = parts.length > 0
-      ? `Minnesota Sports - ${parts.join(', ')}`
-      : 'Minnesota Sports - No Games';
+    const wcParts = [];
+    if (worldCupGames.length > 0) {
+      wcParts.push(`${worldCupGames.length} Result${worldCupGames.length !== 1 ? 's' : ''}`);
+    }
+    if (upcomingWorldCupGames.length > 0) {
+      wcParts.push(`${upcomingWorldCupGames.length} Upcoming`);
+    }
+    const wcLabel = wcParts.length > 0 ? ` | ⚽ World Cup - ${wcParts.join(', ')}` : '';
 
-    const htmlBody = this.generateEmailHtml(games, upcomingGames, date);
+    const subject = `${mnLabel}${wcLabel}`;
+
+    const htmlBody = this.generateEmailHtml(games, upcomingGames, date, worldCupGames, upcomingWorldCupGames);
 
     const command = new SendEmailCommand({
       Source: this.fromAddress,

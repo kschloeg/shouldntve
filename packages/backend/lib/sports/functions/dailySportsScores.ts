@@ -26,21 +26,27 @@ export const handler = async (
     const yesterdayDate = sportsClient.getYesterdayDate();
     console.log(`Fetching scores for date: ${yesterdayDate}`);
 
-    // Fetch all Minnesota games from yesterday and upcoming games
-    const [yesterdayGames, upcomingGames] = await Promise.all([
+    // Fetch all Minnesota games, World Cup games, and upcoming games in parallel
+    const [yesterdayGames, upcomingGames, yesterdayWCGames, upcomingWCGames] = await Promise.all([
       sportsClient.fetchMinnesotaGames(yesterdayDate),
       sportsClient.fetchUpcomingGames(),
+      sportsClient.fetchWorldCupGames(yesterdayDate),
+      sportsClient.fetchUpcomingWorldCupGames(),
     ]);
 
     console.log(`Found ${yesterdayGames.length} Minnesota games from yesterday`);
-    console.log(`Found ${upcomingGames.length} upcoming games in next 24 hours`);
+    console.log(`Found ${upcomingGames.length} upcoming MN games in next 24 hours`);
+    console.log(`Found ${yesterdayWCGames.length} World Cup games from yesterday`);
+    console.log(`Found ${upcomingWCGames.length} upcoming World Cup matches in next 24 hours`);
 
     // Filter for completed games only
     const completedGames = yesterdayGames.filter(game => game.status === 'final');
-    console.log(`${completedGames.length} games were completed`);
+    const completedWCGames = yesterdayWCGames.filter(game => game.status === 'final');
+    console.log(`${completedGames.length} MN games were completed`);
+    console.log(`${completedWCGames.length} World Cup matches were completed`);
 
     // Send email with results and upcoming games
-    await emailService.sendScoresEmail(recipientEmail, completedGames, upcomingGames, yesterdayDate);
+    await emailService.sendScoresEmail(recipientEmail, completedGames, upcomingGames, yesterdayDate, completedWCGames, upcomingWCGames);
     console.log('Successfully sent scores email');
 
     // Log results for CloudWatch
@@ -53,6 +59,18 @@ export const handler = async (
     upcomingGames.forEach(game => {
       console.log(
         `UPCOMING - ${game.league}: ${game.awayTeam.name} @ ${game.homeTeam.name} at ${game.date}`
+      );
+    });
+
+    completedWCGames.forEach(game => {
+      console.log(
+        `WC COMPLETED: ${game.awayTeam.name} ${game.awayTeam.score} @ ${game.homeTeam.name} ${game.homeTeam.score}`
+      );
+    });
+
+    upcomingWCGames.forEach(game => {
+      console.log(
+        `WC UPCOMING: ${game.awayTeam.name} @ ${game.homeTeam.name} at ${game.date}`
       );
     });
 

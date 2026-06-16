@@ -331,16 +331,17 @@ export class BackendStack extends cdk.Stack {
       })
     );
 
-    // EventBridge rule to trigger daily at 4am CST (10am UTC)
+    // EventBridge rule to trigger daily at 4am CDT (8:30am UTC)
+    // Shifted 1.5 hours earlier from the original 10:00 UTC to compensate for DST.
     const dailySportsRule = new cdk.aws_events.Rule(this, 'DailySportsScoresRule', {
       schedule: cdk.aws_events.Schedule.cron({
-        minute: '0',
-        hour: '10', // 4am CST = 10am UTC
+        minute: '30',
+        hour: '8', // 4am CDT = 8:30am UTC, adjusted for DST drift
         day: '*',
         month: '*',
         year: '*',
       }),
-      description: 'Trigger daily sports scores check at 4am CST',
+      description: 'Trigger daily sports scores check at 4am CDT',
     });
 
     // Add Lambda as target for the rule

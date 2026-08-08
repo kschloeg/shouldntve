@@ -5,6 +5,10 @@ import { EmailService } from '../services/emailService';
 /**
  * Lambda handler that runs daily at 4am to fetch and email Minnesota sports scores
  */
+// World Cup coverage is off between tournaments. Flip back to true when the
+// 2027 Women's World Cup begins.
+const WORLD_CUP_ENABLED = false;
+
 export const handler = async (
   event: EventBridgeEvent<'Scheduled Event', any>
 ): Promise<void> => {
@@ -30,8 +34,8 @@ export const handler = async (
     const [yesterdayGames, upcomingGames, yesterdayWCGames, upcomingWCGames] = await Promise.all([
       sportsClient.fetchMinnesotaGames(yesterdayDate),
       sportsClient.fetchUpcomingGames(),
-      sportsClient.fetchWorldCupGames(yesterdayDate),
-      sportsClient.fetchUpcomingWorldCupGames(),
+      WORLD_CUP_ENABLED ? sportsClient.fetchWorldCupGames(yesterdayDate) : Promise.resolve([]),
+      WORLD_CUP_ENABLED ? sportsClient.fetchUpcomingWorldCupGames() : Promise.resolve([]),
     ]);
 
     console.log(`Found ${yesterdayGames.length} Minnesota games from yesterday`);

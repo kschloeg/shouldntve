@@ -34,7 +34,15 @@ export class SportsApiClient {
     const endpoint = `${this.getLeagueEndpoint(league)}?dates=${date}`;
 
     try {
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, {
+        headers: {
+          // ESPN's undocumented API 403s requests from server/cloud IPs that
+          // don't look like a browser (e.g. Lambda's default fetch UA).
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/json',
+        },
+      });
       if (!response.ok) {
         console.error(`Failed to fetch ${league} scores: ${response.statusText}`);
         return [];

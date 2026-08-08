@@ -3,22 +3,22 @@
 ## Build
 
 ```bash
-pnpm i
+npm install
 
 cd packages/frontend
-pnpm run build
+npm run build
 
 cd ../../packages/frontend-deploy
-pnpm run cdk deploy
+npm run cdk deploy
 
 cd ../../packages/backend
-pnpm run build
-pnpm run cdk deploy
+npm run build
+npm run cdk deploy
 ```
 
 ## Test
 
 ```bash
 cd packages/frontend
-pnpm run test
+npm run test
 ```

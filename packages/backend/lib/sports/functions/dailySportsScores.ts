@@ -5,6 +5,10 @@ import { EmailService } from '../services/emailService';
 /**
  * Lambda handler that runs daily at 4am to fetch and email Minnesota sports scores
  */
+// World Cup coverage is off between tournaments. Flip back to true when the
+// 2027 Women's World Cup begins.
+const WORLD_CUP_ENABLED = false;
+
 export const handler = async (
   event: EventBridgeEvent<'Scheduled Event', any>
 ): Promise<void> => {
@@ -26,13 +30,14 @@ export const handler = async (
     const yesterdayDate = sportsClient.getYesterdayDate();
     console.log(`Fetching scores for date: ${yesterdayDate}`);
 
-    // Fetch all Minnesota games, World Cup games, and upcoming games in parallel
-    const [yesterdayGames, upcomingGames, yesterdayWCGames, upcomingWCGames] = await Promise.all([
-      sportsClient.fetchMinnesotaGames(yesterdayDate),
-      sportsClient.fetchUpcomingGames(),
-      sportsClient.fetchWorldCupGames(yesterdayDate),
-      sportsClient.fetchUpcomingWorldCupGames(),
-    ]);
+    // Fetch sequentially, not in parallel: each of these fires several
+    // concurrent API-Sports requests internally (one per league), and
+    // stacking them all at once is enough to trip the free tier's
+    // per-minute rate limit.
+    const yesterdayGames = await sportsClient.fetchMinnesotaGames(yesterdayDate);
+    const upcomingGames = await sportsClient.fetchUpcomingGames();
+    const yesterdayWCGames = WORLD_CUP_ENABLED ? await sportsClient.fetchWorldCupGames(yesterdayDate) : [];
+    const upcomingWCGames = WORLD_CUP_ENABLED ? await sportsClient.fetchUpcomingWorldCupGames() : [];
 
     console.log(`Found ${yesterdayGames.length} Minnesota games from yesterday`);
     console.log(`Found ${upcomingGames.length} upcoming MN games in next 24 hours`);

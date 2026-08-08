@@ -30,13 +30,14 @@ export const handler = async (
     const yesterdayDate = sportsClient.getYesterdayDate();
     console.log(`Fetching scores for date: ${yesterdayDate}`);
 
-    // Fetch all Minnesota games, World Cup games, and upcoming games in parallel
-    const [yesterdayGames, upcomingGames, yesterdayWCGames, upcomingWCGames] = await Promise.all([
-      sportsClient.fetchMinnesotaGames(yesterdayDate),
-      sportsClient.fetchUpcomingGames(),
-      WORLD_CUP_ENABLED ? sportsClient.fetchWorldCupGames(yesterdayDate) : Promise.resolve([]),
-      WORLD_CUP_ENABLED ? sportsClient.fetchUpcomingWorldCupGames() : Promise.resolve([]),
-    ]);
+    // Fetch sequentially, not in parallel: each of these fires several
+    // concurrent API-Sports requests internally (one per league), and
+    // stacking them all at once is enough to trip the free tier's
+    // per-minute rate limit.
+    const yesterdayGames = await sportsClient.fetchMinnesotaGames(yesterdayDate);
+    const upcomingGames = await sportsClient.fetchUpcomingGames();
+    const yesterdayWCGames = WORLD_CUP_ENABLED ? await sportsClient.fetchWorldCupGames(yesterdayDate) : [];
+    const upcomingWCGames = WORLD_CUP_ENABLED ? await sportsClient.fetchUpcomingWorldCupGames() : [];
 
     console.log(`Found ${yesterdayGames.length} Minnesota games from yesterday`);
     console.log(`Found ${upcomingGames.length} upcoming MN games in next 24 hours`);

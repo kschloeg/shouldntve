@@ -312,6 +312,7 @@ export class BackendStack extends cdk.Stack {
         environment: {
           RECIPIENT_EMAIL: process.env.SPORTS_RECIPIENT_EMAIL || 'kschloeg@gmail.com',
           SES_FROM_ADDRESS: process.env.SES_FROM_ADDRESS || '',
+          API_SPORTS_KEY: process.env.API_SPORTS_KEY || '',
         },
         bundling: {
           minify: true,

@@ -163,15 +163,19 @@ export class SportsApiClient {
   }
 
   /**
-   * MLS. Unlike the other leagues, this deliberately does NOT filter by
-   * league ID: Minnesota United plays cross-league tournaments (e.g. the
-   * Leagues Cup) outside MLS's own league ID, and "Minnesota United" isn't
-   * ambiguous enough to need the extra filter the way "Twins" would be.
+   * MLS. Doesn't filter to a single league ID the way the other sports do:
+   * Minnesota United's first team also plays cross-league tournaments (e.g.
+   * the Leagues Cup) outside MLS's own league ID. It does need an allowlist
+   * though - unrestricted, a plain "minnesota" name match also picks up
+   * Minnesota United's reserve team in MLS Next Pro (a different league,
+   * different roster), which is not what "Minnesota Sports" should mean.
    */
   private async fetchSoccerGames(date: string): Promise<Game[]> {
+    const ALLOWED_LEAGUE_IDS = new Set([253 /* MLS */, 772 /* Leagues Cup */]);
     const fixtures = await this.apiSportsGet(API_SPORTS_SOCCER_HOST, '/fixtures', { date });
 
     return fixtures
+      .filter((f: any) => ALLOWED_LEAGUE_IDS.has(f.league?.id))
       .filter((f: any) => this.isMinnesotaName(f.teams?.home?.name) || this.isMinnesotaName(f.teams?.away?.name))
       .map((f: any) => ({
         id: String(f.fixture?.id),

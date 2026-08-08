@@ -55,9 +55,12 @@ export class FrontendDeployStack extends cdk.Stack {
           origin: new S3StaticWebsiteOrigin(staticSiteBucket),
           viewerProtocolPolicy:
             cdk.aws_cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          responseHeadersPolicy: {
-            responseHeadersPolicyId: '67f7725c-6f97-4210-82d7-5512b31e9d03',
-          },
+          responseHeadersPolicy:
+            cdk.aws_cloudfront.ResponseHeadersPolicy.fromResponseHeadersPolicyId(
+              this,
+              'ResponseHeadersPolicy',
+              '67f7725c-6f97-4210-82d7-5512b31e9d03'
+            ),
         },
         domainNames: [DOMAIN_NAME, WWW_DOMAIN_NAME],
         certificate: httpsCertificate,
